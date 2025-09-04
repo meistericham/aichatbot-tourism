@@ -17,6 +17,7 @@
       color: #fff;
       font-family: "Segoe UI", Arial, sans-serif;
       min-height: 100vh;
+      overflow-x: hidden;
     }
 
     /* Header */
@@ -48,23 +49,15 @@
       overflow: hidden;
       display: flex;
     }
-    #n8n-chat, .n8n-chat {
-      flex: 1; width: 100%; height: 100%; min-height: 0;
-    }
+    #n8n-chat, .n8n-chat { flex: 1; width: 100%; height: 100%; min-height: 0; }
 
-    /* Remove n8n default header & footer branding */
+    /* Remove n8n default header & branding */
     #n8n-chat .chat-header { display: none !important; }
     #n8n-chat .powered-by,
-    .n8n-chat .powered-by {
-      display: none !important;
-      visibility: hidden !important;
-      height: 0 !important;
-      margin: 0 !important;
-      padding: 0 !important;
-    }
+    .n8n-chat .powered-by { display: none !important; visibility: hidden !important; height: 0 !important; margin: 0 !important; padding: 0 !important; }
     #n8n-chat .chat-footer { padding-bottom: 0 !important; }
 
-    /* Footer custom */
+    /* Footer */
     footer {
       background: #111;
       text-align: center;
@@ -73,41 +66,89 @@
       color: #aaa;
       border-top: 1px solid #222;
     }
-    footer span {
-      color: #f0f0f0;
-      font-weight: 500;
-    }
+    footer span { color: #f0f0f0; font-weight: 500; }
 
     /* Chat input & button */
-    #n8n-chat .chat-input {
-      font-size: 15px;
-      padding: 10px 14px;
-    }
+    #n8n-chat .chat-input { font-size: 15px; padding: 10px 14px; }
     #n8n-chat .chat-input button {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: #111 !important;
-      color: #fff !important;
-      font-size: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-left: 6px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      transition: background 0.2s ease;
+      width: 44px; height: 44px; border-radius: 50%;
+      background: #111 !important; color: #fff !important; font-size: 20px;
+      display: flex; align-items: center; justify-content: center; margin-left: 6px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3); transition: background 0.2s ease;
     }
     #n8n-chat .chat-input button:hover,
-    #n8n-chat .chat-input button:focus {
-      background: #333 !important;
+    #n8n-chat .chat-input button:focus { background: #333 !important; }
+
+    /* ===== Fullscreen Entry Popup ===== */
+    .entry-overlay {
+      position: fixed; inset: 0; z-index: 9999;
+      display: grid; place-items: center;
+      background: radial-gradient(1200px 800px at 50% 0%, rgba(0,0,0,0.75), rgba(0,0,0,0.95));
+      backdrop-filter: blur(2px);
+      transition: opacity .35s ease, visibility .35s ease;
+      opacity: 1; visibility: visible;
+    }
+    .entry-overlay.hidden { opacity: 0; visibility: hidden; }
+
+    .entry-card {
+      width: min(680px, 92vw);
+      padding: clamp(20px, 4vw, 36px);
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.1), rgba(255,255,255,0.06));
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 10px 40px rgba(0,0,0,0.45);
+      text-align: center;
+    }
+    .entry-eyebrow {
+      display: inline-block;
+      font-size: 12px; letter-spacing: .12em; text-transform: uppercase;
+      color: #d6ff6b; background: rgba(214,255,107,.12);
+      padding: 6px 10px; border-radius: 999px; margin-bottom: 14px;
+    }
+    .entry-title {
+      margin: 0 0 10px; font-size: clamp(22px, 4.8vw, 34px); font-weight: 800;
+    }
+    .entry-sub {
+      margin: 0 0 20px; font-size: 15px; color: #ddd; line-height: 1.6;
+    }
+    .entry-cta {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 10px; padding: 14px 20px;
+      font-size: 16px; font-weight: 700; color: #111; cursor: pointer;
+      background: #d6ff6b; border: none; border-radius: 999px;
+      box-shadow: 0 8px 24px rgba(214,255,107,0.25);
+      transition: transform .12s ease, box-shadow .2s ease, background .2s ease;
+    }
+    .entry-cta:hover { transform: translateY(-1px); box-shadow: 0 12px 30px rgba(214,255,107,0.32); }
+    .entry-cta:active { transform: translateY(0); }
+    .entry-note {
+      margin-top: 14px; font-size: 12px; color: #bbb;
     }
   </style>
 </head>
 <body>
 
+  <!-- Fullscreen Entry Popup -->
+  <div id="entryOverlay" class="entry-overlay" role="dialog" aria-modal="true" aria-labelledby="entryTitle" aria-describedby="entryDesc">
+    <div class="entry-card">
+      <div class="entry-eyebrow">Welcome</div>
+      <h2 id="entryTitle" class="entry-title">TRY CHAT WITH ME AND ASK ABOUT SARAWAK TOURISM</h2>
+      <p id="entryDesc" class="entry-sub">
+        Get quick answers on places, food, events, transport and more. Click below to start chatting with Sam Izrin.
+      </p>
+      <button id="entryStart" class="entry-cta" autofocus>
+        Start Chat
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="currentColor" d="M13 5l7 7-7 7v-4H4v-6h9V5z"/>
+        </svg>
+      </button>
+      <div class="entry-note">Tip: You can close with Enter key.</div>
+    </div>
+  </div>
+
   <header>
     <div class="inner">
-      <a href="https://sarawaktourism.com" target="_blank">
+      <a href="https://sarawaktourism.com" target="_blank" rel="noopener">
         <img src="https://sarawakharvestfestival.com.my/wp-content/uploads/2025/05/Sarawak-More-to-Discover-min.png" alt="Sarawak Tourism Logo" />
       </a>
       <h1>Sarawak AI Tourism Assistant</h1>
@@ -127,20 +168,19 @@
   <script type="module">
     import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
 
-    createChat({
+    // Init chat
+    const chat = createChat({
       webhookUrl: 'https://n8n.meistericham.com/webhook/cfc0414c-8105-427f-bc13-b0ca2df2b8b8/chat',
       target: '#n8n-chat',
       mode: 'fullscreen',
       showWelcomeScreen: false,
-      enableStreaming: true,
+      enableStreaming: false,
       loadPreviousSession: true,
-
       initialMessages: [
         'Selamat datang! 👋 Saya Sam Izrin.',
         'Tanya apa-apa pasal Kuching & Sarawak: tempat menarik, makanan, waktu operasi, pengangkutan.',
         'Contoh: “Bila show Darul Hana fountain?”, “Macam mana pergi Bako?”, “Di mana beli kek lapis?”'
       ],
-
       i18n: {
         en: {
           title: '',
@@ -150,6 +190,37 @@
         }
       }
     });
+
+    // Popup logic
+    const overlay = document.getElementById('entryOverlay');
+    const startBtn = document.getElementById('entryStart');
+
+    function closeOverlayAndFocus() {
+      overlay.classList.add('hidden');
+      // Try focusing the chat input after the fade
+      setTimeout(() => {
+        const input = document.querySelector('#n8n-chat input, #n8n-chat textarea, .n8n-chat input, .n8n-chat textarea');
+        if (input) input.focus({ preventScroll: false });
+        // Smooth scroll chat into view (mobile)
+        document.getElementById('n8n-chat-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 360);
+    }
+
+    startBtn.addEventListener('click', closeOverlayAndFocus);
+
+    // Allow Enter/Escape to control the popup
+    overlay.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); closeOverlayAndFocus(); }
+      if (e.key === 'Escape') { e.preventDefault(); closeOverlayAndFocus(); }
+    });
+
+    // Prevent background scroll while popup visible
+    const restoreScroll = () => { document.documentElement.style.overflow = ''; };
+    document.documentElement.style.overflow = 'hidden';
+    const obs = new MutationObserver(() => {
+      if (overlay.classList.contains('hidden')) { restoreScroll(); obs.disconnect(); }
+    });
+    obs.observe(overlay, { attributes: true, attributeFilter: ['class'] });
   </script>
 
 </body>
