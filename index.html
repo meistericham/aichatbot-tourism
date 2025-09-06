@@ -168,49 +168,78 @@
   <script type="module">
     import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
 
-    // Init chat
-    const chat = createChat({
-      webhookUrl: 'https://n8n.meistericham.com/webhook/cfc0414c-8105-427f-bc13-b0ca2df2b8b8/chat',
-      target: '#n8n-chat',
-      mode: 'fullscreen',
-      showWelcomeScreen: false,
-      enableStreaming: true,
-      loadPreviousSession: true,
-      initialMessages: [
-        'Selamat datang! 👋 Saya Sam Izrin.',
-        'Tanya apa-apa pasal Kuching & Sarawak: tempat menarik, makanan, waktu operasi, pengangkutan.',
-        'Contoh: “Bila show Darul Hana fountain?”, “Macam mana pergi Bako?”, “Di mana beli kek lapis?”'
-      ],
-      i18n: {
-        en: {
-          title: '',
-          subtitle: '',
-          getStarted: '',
-          inputPlaceholder: 'Tanya soalan di sini… contoh: “Waktu fountain Darul Hana”'
-        }
-      }
-    });
-
-    // Popup logic
     const overlay = document.getElementById('entryOverlay');
     const startBtn = document.getElementById('entryStart');
 
+    // ---- Stable per-browser session ID (prevents 100+ new sessions) ----
+    function getOrCreateSessionId() {
+      const KEY = 'sarawak_chat_sid';
+      try {
+        let sid = localStorage.getItem(KEY);
+        if (!sid) {
+          // simple UUID-ish
+          sid = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+            (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+          );
+          localStorage.setItem(KEY, sid);
+        }
+        return sid;
+      } catch {
+        // if storage is blocked, fall back to ephemeral
+        return 'sid-' + Math.random().toString(36).slice(2);
+      }
+    }
+    const SESSION_ID = getOrCreateSessionId();
+
+    let chatStarted = false;
+
     function closeOverlayAndFocus() {
       overlay.classList.add('hidden');
-      // Try focusing the chat input after the fade
       setTimeout(() => {
         const input = document.querySelector('#n8n-chat input, #n8n-chat textarea, .n8n-chat input, .n8n-chat textarea');
         if (input) input.focus({ preventScroll: false });
-        // Smooth scroll chat into view (mobile)
         document.getElementById('n8n-chat-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 360);
     }
 
-    startBtn.addEventListener('click', closeOverlayAndFocus);
+    function startChat() {
+      if (chatStarted) return; // guard against double clicks / keypress
+      chatStarted = true;
+
+      createChat({
+        webhookUrl: 'https://n8n.meistericham.com/webhook/cfc0414c-8105-427f-bc13-b0ca2df2b8b8/chat',
+        target: '#n8n-chat',
+        mode: 'fullscreen',
+        showWelcomeScreen: false,
+        enableStreaming: true,
+        loadPreviousSession: true,           // still allows n8n chat to reuse its own store
+        sessionId: SESSION_ID,               // <-- force same session per browser
+        webhookHeaders: {                    // <-- optional: you can read this in n8n if needed
+          'X-Session-Id': SESSION_ID
+        },
+        initialMessages: [
+          'Selamat datang! 👋 Saya Sam Izrin.',
+          'Tanya apa-apa pasal Kuching & Sarawak: tempat menarik, makanan, waktu operasi, pengangkutan.',
+          'Contoh: “Bila show Darul Hana fountain?”, “Macam mana pergi Bako?”, “Di mana beli kek lapis?”'
+        ],
+        i18n: {
+          en: {
+            title: '',
+            subtitle: '',
+            getStarted: '',
+            inputPlaceholder: 'Tanya soalan di sini… contoh: “Waktu fountain Darul Hana”'
+          }
+        }
+      });
+
+      closeOverlayAndFocus();
+    }
+
+    startBtn.addEventListener('click', startChat);
 
     // Allow Enter/Escape to control the popup
     overlay.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); closeOverlayAndFocus(); }
+      if (e.key === 'Enter') { e.preventDefault(); startChat(); }
       if (e.key === 'Escape') { e.preventDefault(); closeOverlayAndFocus(); }
     });
 
