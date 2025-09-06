@@ -4,20 +4,24 @@
   <meta charset="UTF-8" />
   <title>Sarawak AI Tourism Assistant</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <!-- n8n Chat CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" />
 
   <style>
+    :root {
+      --card-max: 1080px;
+      --cooldown-bg: #111;
+      --cooldown-fg: #fff;
+    }
+    * { box-sizing: border-box; }
     html, body { height: 100%; margin: 0; }
     body {
       display: grid;
-      grid-template-rows: auto 1fr auto; /* header, chat, footer */
+      grid-template-rows: auto 1fr auto;
       background: #111;
       color: #fff;
       font-family: "Segoe UI", Arial, sans-serif;
       min-height: 100vh;
-      overflow-x: hidden;
+      overflow-x: hidden; /* stop side scroll */
     }
 
     /* Header */
@@ -28,124 +32,93 @@
       background: url("https://i.ibb.co/RGVs3mQn/DUN-AI-revised.png") no-repeat center/cover;
       color: #fff;
     }
-    header::before {
-      content: "";
-      position: absolute; inset: 0;
-      background: rgba(0,0,0,0.55);
-    }
-    header .inner { position: relative; z-index: 1; max-width: 1080px; margin: 0 auto; }
-    header img { max-width: 180px; margin-bottom: 6px; background: transparent; border: none; box-shadow: none; cursor: pointer; }
+    header::before { content: ""; position: absolute; inset: 0; background: rgba(0,0,0,0.55); }
+    header .inner { position: relative; z-index: 1; max-width: var(--card-max); margin: 0 auto; }
+    header img { max-width: 180px; margin-bottom: 6px; }
     @media (max-width:600px){ header img{ max-width:150px; } }
     header h1 { font-size: 22px; font-weight: 800; text-shadow: 1px 1px 4px rgba(0,0,0,.7); margin: 5px 0; }
-    header p.sub { margin-top: 4px; font-size: 13px; opacity: .9; }
+    header p.sub { font-size: 13px; opacity: .9; }
 
-    /* Chat container */
-    #n8n-chat-container {
-      width: 100%; height: 100%;
+    /* Chat card */
+    #chatCard {
+      max-width: var(--card-max);
+      width: 92%;
+      margin: 24px auto;
       background: #fff;
-      border-top-left-radius: 20px;
-      border-top-right-radius: 18px;
-      box-shadow: 0 -2px 12px rgba(0,0,0,.25);
-      overflow: hidden;
+      border-radius: 20px;
+      box-shadow: 0 10px 24px rgba(0,0,0,.18);
       display: flex;
+      flex-direction: column;
+      height: 72vh;
+      min-height: 560px;
+      overflow: hidden;           /* keep everything inside, no horizontal scroll */
+      border: 1px solid rgba(0,0,0,.06);
     }
-    #n8n-chat, .n8n-chat { flex: 1; width: 100%; height: 100%; min-height: 0; }
+    #n8n-chat { flex: 1; display: flex; flex-direction: column; min-width: 0; } /* min-width:0 fixes flex overflow */
 
-    /* Remove n8n default header & branding */
-    #n8n-chat .chat-header { display: none !important; }
+    /* Make messages area scroll; keep input visible */
+    #n8n-chat .messages { flex: 1; overflow-y: auto; padding: 20px !important; }
+
+    /* Ensure chat input/footer is visible & full width inside card */
+    #n8n-chat .chat-footer {
+      display: flex !important;
+      visibility: visible !important;
+      background: #fff !important;
+      border-top: 1px solid #eee !important;
+      padding: 12px !important;
+      position: sticky;
+      bottom: 0;
+      left: 0;
+      right: 0;
+    }
+    #n8n-chat .chat-input { width: 100%; display: flex; align-items: center; gap: 8px; }
+    #n8n-chat .chat-input textarea {
+      flex: 1 1 auto;
+      width: 100%;
+      border: 1px solid #ddd !important;
+      border-radius: 20px !important;
+      padding: 10px 14px !important;
+      font-size: 15px;
+      resize: none;
+      max-height: 160px;
+    }
+    #n8n-chat .chat-input button {
+      margin-left: 0;
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      background: #111 !important; color: #fff !important;
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 44px;
+    }
+    #n8n-chat .chat-input button.disabled { opacity: .45; pointer-events: none; }
+
+    /* Remove chat header & branding & launcher */
+    #n8n-chat .chat-header,
     #n8n-chat .powered-by,
-    .n8n-chat .powered-by { display: none !important; visibility: hidden !important; height: 0 !important; margin: 0 !important; padding: 0 !important; }
-    #n8n-chat .chat-footer { padding-bottom: 0 !important; }
+    #n8n-chat [data-testid="powered-by"],
+    .n8n-chat .powered-by,
+    #n8n-chat [data-testid="launcher"],
+    .chat-launcher { display: none !important; }
+
+    /* Cooldown hint bubble */
+    .cooldown-hint {
+      margin-left: auto;
+      background: var(--cooldown-bg);
+      color: var(--cooldown-fg);
+      border-radius: 14px;
+      padding: 6px 10px;
+      font-size: 12px;
+    }
 
     /* Footer */
     footer {
-      background: #111;
-      text-align: center;
-      padding: 10px;
-      font-size: 13px;
-      color: #aaa;
-      border-top: 1px solid #222;
+      background: #111; text-align: center; padding: 10px;
+      font-size: 13px; color: #aaa; border-top: 1px solid #222;
     }
     footer span { color: #f0f0f0; font-weight: 500; }
-
-    /* Chat input & button */
-    #n8n-chat .chat-input { font-size: 15px; padding: 10px 14px; }
-    #n8n-chat .chat-input button {
-      width: 44px; height: 44px; border-radius: 50%;
-      background: #111 !important; color: #fff !important; font-size: 20px;
-      display: flex; align-items: center; justify-content: center; margin-left: 6px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3); transition: background 0.2s ease;
-    }
-    #n8n-chat .chat-input button:hover,
-    #n8n-chat .chat-input button:focus { background: #333 !important; }
-
-    /* ===== Fullscreen Entry Popup ===== */
-    .entry-overlay {
-      position: fixed; inset: 0; z-index: 9999;
-      display: grid; place-items: center;
-      background: radial-gradient(1200px 800px at 50% 0%, rgba(0,0,0,0.75), rgba(0,0,0,0.95));
-      backdrop-filter: blur(2px);
-      transition: opacity .35s ease, visibility .35s ease;
-      opacity: 1; visibility: visible;
-    }
-    .entry-overlay.hidden { opacity: 0; visibility: hidden; }
-
-    .entry-card {
-      width: min(680px, 92vw);
-      padding: clamp(20px, 4vw, 36px);
-      border-radius: 18px;
-      background: linear-gradient(180deg, rgba(255,255,255,0.1), rgba(255,255,255,0.06));
-      border: 1px solid rgba(255,255,255,0.12);
-      box-shadow: 0 10px 40px rgba(0,0,0,0.45);
-      text-align: center;
-    }
-    .entry-eyebrow {
-      display: inline-block;
-      font-size: 12px; letter-spacing: .12em; text-transform: uppercase;
-      color: #d6ff6b; background: rgba(214,255,107,.12);
-      padding: 6px 10px; border-radius: 999px; margin-bottom: 14px;
-    }
-    .entry-title {
-      margin: 0 0 10px; font-size: clamp(22px, 4.8vw, 34px); font-weight: 800;
-    }
-    .entry-sub {
-      margin: 0 0 20px; font-size: 15px; color: #ddd; line-height: 1.6;
-    }
-    .entry-cta {
-      display: inline-flex; align-items: center; justify-content: center;
-      gap: 10px; padding: 14px 20px;
-      font-size: 16px; font-weight: 700; color: #111; cursor: pointer;
-      background: #d6ff6b; border: none; border-radius: 999px;
-      box-shadow: 0 8px 24px rgba(214,255,107,0.25);
-      transition: transform .12s ease, box-shadow .2s ease, background .2s ease;
-    }
-    .entry-cta:hover { transform: translateY(-1px); box-shadow: 0 12px 30px rgba(214,255,107,0.32); }
-    .entry-cta:active { transform: translateY(0); }
-    .entry-note {
-      margin-top: 14px; font-size: 12px; color: #bbb;
-    }
   </style>
 </head>
 <body>
-
-  <!-- Fullscreen Entry Popup -->
-  <div id="entryOverlay" class="entry-overlay" role="dialog" aria-modal="true" aria-labelledby="entryTitle" aria-describedby="entryDesc">
-    <div class="entry-card">
-      <div class="entry-eyebrow">Welcome</div>
-      <h2 id="entryTitle" class="entry-title">TRY CHAT WITH ME AND ASK ABOUT SARAWAK TOURISM</h2>
-      <p id="entryDesc" class="entry-sub">
-        Get quick answers on places, food, events, transport and more. Click below to start chatting with Sam Izrin.
-      </p>
-      <button id="entryStart" class="entry-cta" autofocus>
-        Start Chat
-        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-          <path fill="currentColor" d="M13 5l7 7-7 7v-4H4v-6h9V5z"/>
-        </svg>
-      </button>
-      <div class="entry-note">Tip: You can close with Enter key.</div>
-    </div>
-  </div>
-
   <header>
     <div class="inner">
       <a href="https://sarawaktourism.com" target="_blank" rel="noopener">
@@ -156,72 +129,233 @@
     </div>
   </header>
 
-  <div id="n8n-chat-container">
+  <section id="chatCard">
     <div id="n8n-chat"></div>
-  </div>
+  </section>
 
   <footer>
-    Concept by <span>Mohd Hisyamudin</span> | Powered by <span>AI</span>
+    Concept by <span><a href="https://mohdhisyamudin.com" target="_blank" rel="noopener" style="color:#fff; text-decoration:underline;">Mohd Hisyamudin</a></span> | Powered by <span>AI</span>
   </footer>
 
-  <!-- Script -->
   <script type="module">
     import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
 
-    // Init chat
-    const chat = createChat({
-      webhookUrl: 'https://n8n.meistericham.com/webhook/cfc0414c-8105-427f-bc13-b0ca2df2b8b8/chat',
-      target: '#n8n-chat',
-      mode: 'fullscreen',
-      showWelcomeScreen: false,
-      enableStreaming: true,
-      loadPreviousSession: true,
-      initialMessages: [
-        'Selamat datang! 👋 Saya Sam Izrin.',
-        'Tanya apa-apa pasal Kuching & Sarawak: tempat menarik, makanan, waktu operasi, pengangkutan.',
-        'Contoh: “Bila show Darul Hana fountain?”, “Macam mana pergi Bako?”, “Di mana beli kek lapis?”'
-      ],
-      i18n: {
-        en: {
-          title: '',
-          subtitle: '',
-          getStarted: '',
-          inputPlaceholder: 'Tanya soalan di sini… contoh: “Waktu fountain Darul Hana”'
-        }
+    const WEBHOOK_URL = 'https://n8n.meistericham.com/webhook/cfc0414c-8105-427f-bc13-b0ca2df2b8b8/chat';
+
+    // ---------- Session + Anti-spam config ----------
+    const COOLDOWN_MS = 10_000;           // 10s between user sends
+    const INACTIVITY_MS = 3 * 60_000;     // 3 min -> reset session
+    const LS_KEYS = {
+      sessionId:  'sam.session.id',
+      sessionAt:  'sam.session.startedAt',
+      lastTouch:  'sam.session.lastTouch',
+      lastSent:   'sam.last.sentAt',
+    };
+
+    // Create/validate 1 session per device
+    function ensureSession() {
+      const now = Date.now();
+      const sid = localStorage.getItem(LS_KEYS.sessionId);
+      const last = Number(localStorage.getItem(LS_KEYS.lastTouch) || 0);
+
+      if (!sid || (now - last > INACTIVITY_MS)) {
+        const newId = crypto.randomUUID?.() || String(now);
+        localStorage.setItem(LS_KEYS.sessionId, newId);
+        localStorage.setItem(LS_KEYS.sessionAt, String(now));
       }
-    });
-
-    // Popup logic
-    const overlay = document.getElementById('entryOverlay');
-    const startBtn = document.getElementById('entryStart');
-
-    function closeOverlayAndFocus() {
-      overlay.classList.add('hidden');
-      // Try focusing the chat input after the fade
-      setTimeout(() => {
-        const input = document.querySelector('#n8n-chat input, #n8n-chat textarea, .n8n-chat input, .n8n-chat textarea');
-        if (input) input.focus({ preventScroll: false });
-        // Smooth scroll chat into view (mobile)
-        document.getElementById('n8n-chat-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 360);
+      localStorage.setItem(LS_KEYS.lastTouch, String(now));
+      return localStorage.getItem(LS_KEYS.sessionId);
     }
 
-    startBtn.addEventListener('click', closeOverlayAndFocus);
-
-    // Allow Enter/Escape to control the popup
-    overlay.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); closeOverlayAndFocus(); }
-      if (e.key === 'Escape') { e.preventDefault(); closeOverlayAndFocus(); }
+    // Heartbeat on interactions
+    function heartbeat() {
+      localStorage.setItem(LS_KEYS.lastTouch, String(Date.now()));
+    }
+    ['mousemove','keydown','pointerdown','scroll','visibilitychange'].forEach(ev => {
+      document.addEventListener(ev, heartbeat, { passive: true });
     });
 
-    // Prevent background scroll while popup visible
-    const restoreScroll = () => { document.documentElement.style.overflow = ''; };
-    document.documentElement.style.overflow = 'hidden';
-    const obs = new MutationObserver(() => {
-      if (overlay.classList.contains('hidden')) { restoreScroll(); obs.disconnect(); }
+    // Inactivity watchdog (resets session)
+    let idleTimer = null;
+    function startInactivityTimer(){
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        // new session id after idle
+        localStorage.removeItem(LS_KEYS.sessionId);
+        ensureSession();
+      }, INACTIVITY_MS);
+    }
+
+    // ---------- Init chat ----------
+    document.addEventListener('DOMContentLoaded', async () => {
+      ensureSession();
+      startInactivityTimer();
+
+      await createChat({
+        webhookUrl: WEBHOOK_URL,
+        target: '#n8n-chat',
+        mode: 'embedded',
+        showWelcomeScreen: false,
+        enableStreaming: true,
+        loadPreviousSession: true,
+        initialMessages: [
+          'Selamat datang! 👋 Saya Sam Izrin.',
+          'Tanya apa-apa pasal Kuching & Sarawak: tempat menarik, makanan, waktu operasi, pengangkutan.',
+          'Contoh: "Bila show Darul Hana fountain?", "Macam mana pergi Bako?", "Di mana beli kek lapis?"'
+        ],
+        i18n: {
+          en: { inputPlaceholder: 'Tanya soalan di sini… contoh: "Waktu fountain Darul Hana"' }
+        }
+      });
+
+      installGuards();      // anti-spam + robust unlock
+      installLinkifier();   // clickable URLs
     });
-    obs.observe(overlay, { attributes: true, attributeFilter: ['class'] });
+
+    // ---------- Robust Guards (cooldown + one in-flight + safe unlock) ----------
+    function installGuards(){
+      const root = document.getElementById('n8n-chat');
+      if (!root) return;
+
+      const q  = (sel)=> root.querySelector(sel);
+      const getBox = ()=> q('textarea, input[type="text"]');
+      const getBtn = ()=> q('.chat-input button');
+
+      let inFlight = false;
+
+      const disable = (on) => {
+        const box = getBox();
+        const btn = getBtn();
+        if (box) box.disabled = on;
+        if (btn) btn.classList.toggle('disabled', on);
+      };
+
+      function canSend(text){
+        if (!text || !text.trim()) return {ok:false, msg:'Soalan kosong.'};
+        const lastSent = Number(localStorage.getItem(LS_KEYS.lastSent) || 0);
+        const diff = Date.now() - lastSent;
+        if (diff < COOLDOWN_MS){
+          const left = Math.ceil((COOLDOWN_MS - diff)/1000);
+          return {ok:false, msg:`Tunggu ${left}s sebelum hantar soalan seterusnya.`};
+        }
+        if (inFlight) return {ok:false, msg:'Tunggu jawapan selesai.'};
+        return {ok:true};
+      }
+
+      // Observe message container for ANY additions to unlock
+      const messagesRoot = root.querySelector('.messages') || root;
+      let lastMessageCount = 0;
+      const countMessages = () => messagesRoot.querySelectorAll('*').length;
+
+      const unlock = () => {
+        inFlight = false;
+        disable(false);
+      };
+
+      const mo = new MutationObserver(() => {
+        const c = countMessages();
+        if (inFlight && c > lastMessageCount) {
+          lastMessageCount = c;
+          unlock();
+        }
+      });
+      mo.observe(messagesRoot, { childList: true, subtree: true });
+
+      // Safety unlock if streaming stalls
+      let safetyTimer = null;
+      function armSafetyTimer() {
+        clearTimeout(safetyTimer);
+        safetyTimer = setTimeout(() => unlock(), 25_000);
+      }
+
+      // Cooldown hint renderer
+      let hintTimer = null;
+      function showCooldownHint(text){
+        let existing = q('.cooldown-hint');
+        if (!existing){
+          existing = document.createElement('div');
+          existing.className = 'cooldown-hint';
+          const footer = q('.chat-footer') || root;
+          footer.appendChild(existing);
+        }
+        existing.textContent = text;
+        clearTimeout(hintTimer);
+        hintTimer = setTimeout(()=> existing.remove(), 3000);
+      }
+
+      // Keydown guard (Enter to send; Shift+Enter for newline)
+      root.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' || e.shiftKey) return;
+
+        const box = getBox();
+        if (!box) return;
+
+        const check = canSend(box.value);
+        if (!check.ok){
+          e.preventDefault();
+          showCooldownHint(check.msg);
+          return;
+        }
+
+        // Mark send
+        localStorage.setItem(LS_KEYS.lastSent, Date.now());
+        inFlight = true;
+        disable(true);
+        lastMessageCount = countMessages();
+        heartbeat();
+        startInactivityTimer();
+        armSafetyTimer(); // fallback unlock
+      }, true);
+
+      // Also guard the send button
+      root.addEventListener('click', (e) => {
+        const btn = getBtn();
+        if (!btn || e.target !== btn) return;
+
+        const box = getBox();
+        const check = canSend(box?.value || '');
+        if (!check.ok){
+          e.preventDefault();
+          showCooldownHint(check.msg);
+          return;
+        }
+
+        localStorage.setItem(LS_KEYS.lastSent, Date.now());
+        inFlight = true;
+        disable(true);
+        lastMessageCount = countMessages();
+        heartbeat();
+        startInactivityTimer();
+        armSafetyTimer();
+      }, true);
+    }
+
+    // ---------- URL Linkifier (make plain URLs clickable) ----------
+    function installLinkifier() {
+      const container = document.getElementById('n8n-chat');
+      if (!container) return;
+      const urlRegex = /\b(https?:\/\/[^\s<)]+)\b/gi;
+
+      const enhance = (el) => {
+        if (!el || el.__linkified) return;
+        el.innerHTML = el.innerHTML.replace(urlRegex, (m) => {
+          const safe = m.replace(/"/g, '&quot;');
+          return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
+        });
+        el.__linkified = true;
+      };
+
+      const mo = new MutationObserver((mutations) => {
+        for (const m of mutations) {
+          for (const n of m.addedNodes) {
+            if (!(n instanceof HTMLElement)) continue;
+            if (n.matches('.message-text, .bubble, .markdown-body, .chat-message')) enhance(n);
+            n.querySelectorAll?.('.message-text, .bubble, .markdown-body, .chat-message').forEach(enhance);
+          }
+        }
+      });
+      mo.observe(container, { childList: true, subtree: true });
+    }
   </script>
-
 </body>
 </html>
