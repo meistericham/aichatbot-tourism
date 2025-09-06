@@ -28,16 +28,12 @@
       background: url("https://i.ibb.co/RGVs3mQn/DUN-AI-revised.png") no-repeat center/cover;
       color: #fff;
     }
-    header::before {
-      content: "";
-      position: absolute; inset: 0;
-      background: rgba(0,0,0,0.55);
-    }
-    header .inner { position: relative; z-index: 1; max-width: 1080px; margin: 0 auto; }
-    header img { max-width: 180px; margin-bottom: 6px; background: transparent; border: none; box-shadow: none; cursor: pointer; }
+    header::before { content:""; position:absolute; inset:0; background:rgba(0,0,0,.55); }
+    header .inner { position:relative; z-index:1; max-width:1080px; margin:0 auto; }
+    header img { max-width:180px; margin-bottom:6px; border:none; background:transparent; box-shadow:none; cursor:pointer; }
     @media (max-width:600px){ header img{ max-width:150px; } }
-    header h1 { font-size: 22px; font-weight: 800; text-shadow: 1px 1px 4px rgba(0,0,0,.7); margin: 5px 0; }
-    header p.sub { margin-top: 4px; font-size: 13px; opacity: .9; }
+    header h1 { font-size:22px; font-weight:800; text-shadow:1px 1px 4px rgba(0,0,0,.7); margin:5px 0; }
+    header p.sub { margin-top:4px; font-size:13px; opacity:.9; }
 
     /* Chat container */
     #n8n-chat-container {
@@ -48,25 +44,36 @@
       box-shadow: 0 -2px 12px rgba(0,0,0,.25);
       overflow: hidden;
       display: flex;
+      flex-direction: column;
+      position: relative;
     }
-    #n8n-chat, .n8n-chat { flex: 1; width: 100%; height: 100%; min-height: 0; }
+    #n8n-chat, .n8n-chat { flex: 1; width: 100%; min-height: 0; }
 
-    /* Remove n8n default header & branding */
+    /* Remove n8n default header */
     #n8n-chat .chat-header { display: none !important; }
-    #n8n-chat .powered-by,
-    .n8n-chat .powered-by { display: none !important; visibility: hidden !important; height: 0 !important; margin: 0 !important; padding: 0 !important; }
     #n8n-chat .chat-footer { padding-bottom: 0 !important; }
 
-    /* Footer */
-    footer {
+    /* Our “custom footer” INSIDE the chat container, shown ABOVE n8n’s branding */
+    .custom-footer {
       background: #111;
+      color: #ccc;
       text-align: center;
-      padding: 10px;
       font-size: 13px;
-      color: #aaa;
+      padding: 10px 8px;
       border-top: 1px solid #222;
+      z-index: 5;
     }
-    footer span { color: #f0f0f0; font-weight: 500; }
+    .custom-footer a { color:#fff; text-decoration:underline; }
+
+    /* We anchor the custom footer to the bottom edge of the chat container,
+       and give the chat area a bottom padding so it doesn’t overlap messages. */
+    #n8n-chat-container.with-custom-footer {
+      padding-bottom: 46px; /* room for our footer strip */
+    }
+    .custom-footer.sticky-inside {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+    }
 
     /* Chat input & button */
     #n8n-chat .chat-input { font-size: 15px; padding: 10px 14px; }
@@ -105,25 +112,28 @@
       color: #d6ff6b; background: rgba(214,255,107,.12);
       padding: 6px 10px; border-radius: 999px; margin-bottom: 14px;
     }
-    .entry-title {
-      margin: 0 0 10px; font-size: clamp(22px, 4.8vw, 34px); font-weight: 800;
-    }
-    .entry-sub {
-      margin: 0 0 20px; font-size: 15px; color: #ddd; line-height: 1.6;
-    }
+    .entry-title { margin:0 0 10px; font-size: clamp(22px, 4.8vw, 34px); font-weight: 800; }
+    .entry-sub { margin:0 0 20px; font-size: 15px; color:#ddd; line-height:1.6; }
     .entry-cta {
-      display: inline-flex; align-items: center; justify-content: center;
-      gap: 10px; padding: 14px 20px;
-      font-size: 16px; font-weight: 700; color: #111; cursor: pointer;
-      background: #d6ff6b; border: none; border-radius: 999px;
-      box-shadow: 0 8px 24px rgba(214,255,107,0.25);
+      display:inline-flex; align-items:center; justify-content:center; gap:10px;
+      padding:14px 20px; font-size:16px; font-weight:700; color:#111; cursor:pointer;
+      background:#d6ff6b; border:none; border-radius:999px;
+      box-shadow:0 8px 24px rgba(214,255,107,0.25);
       transition: transform .12s ease, box-shadow .2s ease, background .2s ease;
     }
-    .entry-cta:hover { transform: translateY(-1px); box-shadow: 0 12px 30px rgba(214,255,107,0.32); }
+    .entry-cta:hover { transform: translateY(-1px); box-shadow:0 12px 30px rgba(214,255,107,.32); }
     .entry-cta:active { transform: translateY(0); }
-    .entry-note {
-      margin-top: 14px; font-size: 12px; color: #bbb;
+    .entry-note { margin-top:14px; font-size:12px; color:#bbb; }
+
+    /* Tiny toast for dedupe/throttle messages */
+    .toast {
+      position: fixed; right: 14px; bottom: 68px;
+      background: #111; color: #fff; padding: 10px 14px; border-radius: 10px;
+      border: 1px solid #333; box-shadow: 0 6px 20px rgba(0,0,0,.35);
+      font-size: 13px; z-index: 99999; opacity: 0; transform: translateY(8px);
+      transition: opacity .18s ease, transform .18s ease;
     }
+    .toast.show { opacity: 1; transform: translateY(0); }
   </style>
 </head>
 <body>
@@ -138,9 +148,7 @@
       </p>
       <button id="entryStart" class="entry-cta" autofocus>
         Start Chat
-        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-          <path fill="currentColor" d="M13 5l7 7-7 7v-4H4v-6h9V5z"/>
-        </svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M13 5l7 7-7 7v-4H4v-6h9V5z"/></svg>
       </button>
       <div class="entry-note">Tip: You can close with Enter key.</div>
     </div>
@@ -156,42 +164,51 @@
     </div>
   </header>
 
-  <div id="n8n-chat-container">
+  <div id="n8n-chat-container" class="with-custom-footer">
     <div id="n8n-chat"></div>
+
+    <!-- Our footer strip shown ABOVE n8n’s own “Powered by” line -->
+    <div class="custom-footer sticky-inside">
+      Concept by <a href="https://mohdhisyamudin.com" target="_blank" rel="noopener">Mohd Hisyamudin</a> &nbsp;|&nbsp; Powered by <span>AI</span>
+    </div>
   </div>
 
   <footer>
-    Concept by <span>Mohd Hisyamudin</span> | Powered by <span>AI</span>
+    <!-- Page footer (kept) – optional -->
   </footer>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <!-- Script -->
   <script type="module">
     import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
 
+    // Init chat
+    const chat = createChat({
+      webhookUrl: 'https://n8n.meistericham.com/webhook/cfc0414c-8105-427f-bc13-b0ca2df2b8b8/chat',
+      target: '#n8n-chat',
+      mode: 'fullscreen',
+      showWelcomeScreen: false,
+      enableStreaming: true,
+      loadPreviousSession: true,
+      initialMessages: [
+        'Selamat datang! 👋 Saya Sam Izrin.',
+        'Tanya apa-apa pasal Kuching & Sarawak: tempat menarik, makanan, waktu operasi, pengangkutan.',
+        'Contoh: “Bila show Darul Hana fountain?”, “Macam mana pergi Bako?”, “Di mana beli kek lapis?”'
+      ],
+      i18n: {
+        en: {
+          title: '',
+          subtitle: '',
+          getStarted: '',
+          inputPlaceholder: 'Tanya soalan di sini… contoh: “Waktu fountain Darul Hana”'
+        }
+      }
+    });
+
+    // Popup logic
     const overlay = document.getElementById('entryOverlay');
     const startBtn = document.getElementById('entryStart');
-
-    // ---- Stable per-browser session ID (prevents 100+ new sessions) ----
-    function getOrCreateSessionId() {
-      const KEY = 'sarawak_chat_sid';
-      try {
-        let sid = localStorage.getItem(KEY);
-        if (!sid) {
-          // simple UUID-ish
-          sid = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
-            (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
-          );
-          localStorage.setItem(KEY, sid);
-        }
-        return sid;
-      } catch {
-        // if storage is blocked, fall back to ephemeral
-        return 'sid-' + Math.random().toString(36).slice(2);
-      }
-    }
-    const SESSION_ID = getOrCreateSessionId();
-
-    let chatStarted = false;
 
     function closeOverlayAndFocus() {
       overlay.classList.add('hidden');
@@ -201,55 +218,117 @@
         document.getElementById('n8n-chat-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 360);
     }
-
-    function startChat() {
-      if (chatStarted) return; // guard against double clicks / keypress
-      chatStarted = true;
-
-      createChat({
-        webhookUrl: 'https://n8n.meistericham.com/webhook/cfc0414c-8105-427f-bc13-b0ca2df2b8b8/chat',
-        target: '#n8n-chat',
-        mode: 'fullscreen',
-        showWelcomeScreen: false,
-        enableStreaming: true,
-        loadPreviousSession: true,           // still allows n8n chat to reuse its own store
-        sessionId: SESSION_ID,               // <-- force same session per browser
-        webhookHeaders: {                    // <-- optional: you can read this in n8n if needed
-          'X-Session-Id': SESSION_ID
-        },
-        initialMessages: [
-          'Selamat datang! 👋 Saya Sam Izrin.',
-          'Tanya apa-apa pasal Kuching & Sarawak: tempat menarik, makanan, waktu operasi, pengangkutan.',
-          'Contoh: “Bila show Darul Hana fountain?”, “Macam mana pergi Bako?”, “Di mana beli kek lapis?”'
-        ],
-        i18n: {
-          en: {
-            title: '',
-            subtitle: '',
-            getStarted: '',
-            inputPlaceholder: 'Tanya soalan di sini… contoh: “Waktu fountain Darul Hana”'
-          }
-        }
-      });
-
-      closeOverlayAndFocus();
-    }
-
-    startBtn.addEventListener('click', startChat);
-
-    // Allow Enter/Escape to control the popup
+    startBtn.addEventListener('click', closeOverlayAndFocus);
     overlay.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); startChat(); }
-      if (e.key === 'Escape') { e.preventDefault(); closeOverlayAndFocus(); }
+      if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); closeOverlayAndFocus(); }
     });
 
     // Prevent background scroll while popup visible
-    const restoreScroll = () => { document.documentElement.style.overflow = ''; };
     document.documentElement.style.overflow = 'hidden';
     const obs = new MutationObserver(() => {
-      if (overlay.classList.contains('hidden')) { restoreScroll(); obs.disconnect(); }
+      if (overlay.classList.contains('hidden')) { document.documentElement.style.overflow = ''; obs.disconnect(); }
     });
     obs.observe(overlay, { attributes: true, attributeFilter: ['class'] });
+
+    /* ---------- DEDUPE + SINGLE-IN-FLIGHT GUARD (client-side) ---------- */
+    const toast = document.getElementById('toast');
+    const showToast = (msg) => {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => toast.classList.remove('show'), 1800);
+    };
+
+    let inFlight = false;
+    let lastMsg = '';
+    let lastTime = 0;
+    const dedupeWindowMs = 15000; // 15s window for exact duplicates
+
+    // Find input & send button once the widget renders
+    const hookControls = () => {
+      const root = document.getElementById('n8n-chat');
+      if (!root) return;
+
+      const input = root.querySelector('textarea, input[type="text"]');
+      const sendBtn = root.querySelector('.chat-input button');
+
+      if (!input || !sendBtn) {
+        // try again shortly (first render can be async)
+        setTimeout(hookControls, 400);
+        return;
+      }
+
+      const trySend = (e, source) => {
+        const text = (input.value || '').trim();
+
+        // Block empty
+        if (!text) return;
+
+        // Block while waiting for a reply
+        if (inFlight) {
+          e.preventDefault(); e.stopImmediatePropagation();
+          showToast('Please wait… processing your previous question.');
+          return;
+        }
+
+        // Block exact duplicates within window
+        const now = Date.now();
+        if (text === lastMsg && (now - lastTime) < dedupeWindowMs) {
+          e.preventDefault(); e.stopImmediatePropagation();
+          showToast('You just asked the same question. Try a different one 🙂');
+          return;
+        }
+
+        // Guard passes → mark in-flight & remember
+        inFlight = true;
+        lastMsg = text;
+        lastTime = now;
+
+        // Re-enable after a bot message arrives
+        awaitBotReplyThenUnlock();
+      };
+
+      // Intercept Enter key
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          trySend(e, 'enter');
+          // Let n8n submit only if not blocked above
+        }
+      }, true); // capture so we can prevent early
+
+      // Intercept button clicks
+      sendBtn.addEventListener('click', (e) => trySend(e, 'button'), true);
+    };
+
+    // Watch for new incoming bot message to release the lock
+    const awaitBotReplyThenUnlock = () => {
+      const chatWrap = document.getElementById('n8n-chat-container');
+      const release = () => { inFlight = false; };
+
+      // Fallback release timer in case observer misses (network errors etc.)
+      clearTimeout(awaitBotReplyThenUnlock._fallback);
+      awaitBotReplyThenUnlock._fallback = setTimeout(release, 25000);
+
+      // Observe DOM mutations for new bubbles (very lightweight)
+      const mo = new MutationObserver((mutations) => {
+        for (const m of mutations) {
+          for (const n of m.addedNodes) {
+            if (!(n instanceof HTMLElement)) continue;
+            // Heuristic: any new message container from bot/user will appear;
+            // We accept the first addition after our send as "reply arrived".
+            if (n.classList && (n.classList.contains('chat-message') || n.querySelector('.chat-message'))) {
+              release();
+              mo.disconnect();
+              return;
+            }
+          }
+        }
+      });
+      mo.observe(chatWrap, { childList: true, subtree: true });
+    };
+
+    // Hook once ready
+    setTimeout(hookControls, 600);
   </script>
 
 </body>
