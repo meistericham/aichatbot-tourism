@@ -195,16 +195,15 @@
     }
 
     /* =========================================================
-       SEGMENT C — Countdown state + logic
+       SEGMENT C — Countdown state + logic  (REPLACE)
     ==========================================================*/
     let lastSendAt=0,lastText='',inFlight=false;
     let cooldownEndAt = 0;
     let cooldownTimer = null;
-    let cooldownLine  = null;
 
     const cooldownRemaining = () =>
       Math.max(0, (cooldownEndAt || (lastSendAt+COOLDOWN_MS)) - Date.now());
-
+    
     function setControlsDisabled(on){
       const root = document.getElementById('n8n-chat');
       const box = root?.querySelector('textarea, input[type="text"]');
@@ -212,48 +211,64 @@
       if (box) box.disabled = on;
       if (btn) btn.disabled = on;
     }
-
-    // visible countdown + disables input
+    
+    /* visible countdown + disables input
+       - reuses ONE .cooldown-line element
+       - replaces text when finished, then auto-removes
+    */
     function startCooldown(seconds = 10){
       if (cooldownTimer) return;                 // no double-start
       cooldownEndAt = Date.now() + seconds*1000;
       setControlsDisabled(true);
-
+    
+      // ensure only one countdown line exists
+      const line = getOrCreateCooldownLine();
+      const banner = qs('#cooldownBanner');
+    
       const update = () => {
         const remainingMs = cooldownRemaining();
         const secs = Math.ceil(remainingMs/1000);
-
-        if (!cooldownLine) cooldownLine = injectSystemMessage(`⏳ Tunggu ${secs}s sebelum mesej seterusnya.`);
-        else cooldownLine.textContent = `⏳ Tunggu ${secs}s sebelum mesej seterusnya.`;
-
-        const b = qs('#cooldownBanner');
-        b.textContent = `⏳ Sila tunggu ${secs} saat sebelum hantar soalan baharu.`;
-        show(b);
-
+    
+        if (line) line.textContent = `⏳ Tunggu ${secs}s sebelum mesej seterusnya.`;
+        if (banner) {
+          banner.textContent = `⏳ Sila tunggu ${secs} saat sebelum hantar soalan baharu.`;
+          show(banner);
+        }
+    
         if (remainingMs <= 0){
           clearInterval(cooldownTimer);
-          cooldownTimer=null;
-          cooldownLine=null;
-          hide(b);
+          cooldownTimer = null;
           setControlsDisabled(false);
-          injectSystemMessage('✅ Anda boleh hantar mesej baru sekarang.');
+    
+          // show “done” message in the SAME line, then fade/remove
+          if (line) {
+            line.textContent = '✅ Anda boleh hantar mesej baru sekarang.';
+            line.classList.add('cooldown-done');
+            setTimeout(() => line.remove(), 2500);
+          }
+          if (banner) hide(banner);
         }
       };
-
+    
       update();                                   // show immediately
-      cooldownTimer = setInterval(update, 1000);  // then tick every second
+      cooldownTimer = setInterval(update, 1000);  // then tick each second
     }
-
-    // Block sends if cooling or a request is still in-flight
+    
+    /* Block sends if cooling or a request is still in-flight */
     function blockIfCooling(e){
       const rem=cooldownRemaining();
       if(rem>0 || inFlight){
         e?.preventDefault();
         const secs = Math.ceil(rem/1000) || Math.ceil(COOLDOWN_MS/1000);
+    
+        const line = getOrCreateCooldownLine();
+        if (line) line.textContent = `⏳ Tunggu ${secs}s sebelum mesej seterusnya.`;
+    
         const b = qs('#cooldownBanner');
-        b.textContent=`⏳ Sila tunggu ${secs} saat sebelum hantar soalan baharu.`;
-        show(b); setTimeout(()=>hide(b), 1200);
-        if (!cooldownTimer) cooldownLine = injectSystemMessage(`⏳ Tunggu ${secs}s sebelum mesej seterusnya.`);
+        if (b){
+          b.textContent=`⏳ Sila tunggu ${secs} saat sebelum hantar soalan baharu.`;
+          show(b); setTimeout(()=>hide(b), 1200);
+        }
         return true;
       }
       return false;
