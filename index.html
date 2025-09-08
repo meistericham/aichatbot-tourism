@@ -5,7 +5,7 @@
   <title>Sarawak AI Tourism Assistant</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" />
-  <!-- reCAPTCHA v3: keep your REAL site key here -->
+  <!-- reCAPTCHA v3: use your REAL site key -->
   <script src="https://www.google.com/recaptcha/api.js?render=6Lf0xsErAAAAAM7vVvRIqb5JI_2Kf0p10aGzJ88W"></script>
 
   <style>
@@ -31,6 +31,7 @@
       overflow:hidden;position:relative
     }
 
+    /* reCAPTCHA gate */
     #gate{position:absolute;inset:0;z-index:3;display:grid;place-items:center;
       background:linear-gradient(180deg,rgba(255,255,255,.9),rgba(255,255,255,.96))}
     #gate.hidden{display:none}
@@ -44,20 +45,26 @@
     .gate-btn[disabled]{opacity:.6;cursor:not-allowed}
     .gate-hint{margin-top:10px;font-size:12px;color:#666}
 
+    /* Instruction panel inside card */
     #welcomeNote{position:absolute;top:12px;left:12px;right:12px;z-index:2;background:#f6f9ff;border:1px solid #e5edff;
       color:#26324b;padding:14px 16px;border-radius:12px;font-size:14px;line-height:1.5}
     #welcomeNote.hidden{display:none}
 
+    /* n8n host */
     #n8n-chat{flex:1;display:flex;flex-direction:column;min-height:0}
     #n8n-chat .messages{flex:1;overflow-y:auto;padding:20px}
+
+    /* show footer & input */
     #n8n-chat .chat-footer{display:flex !important;visibility:visible !important;background:#fff !important;border-top:1px solid #eee !important;padding:12px !important}
     #n8n-chat .chat-input{width:100%;display:flex}
     #n8n-chat .chat-input textarea{flex:1;border:1px solid #ddd !important;border-radius:20px !important;padding:10px 14px !important;font-size:15px;resize:none;min-height:44px;max-height:140px}
     #n8n-chat .chat-input button{margin-left:8px;width:44px;height:44px;border-radius:50%;background:#111 !important;color:#fff !important}
 
+    /* hide n8n header/branding/launcher */
     #n8n-chat .chat-header, #n8n-chat [data-testid="powered-by"], #n8n-chat .powered-by,
     .n8n-chat .powered-by, #n8n-chat [data-testid="launcher"], .chat-launcher{display:none !important}
 
+    /* system lines + countdown banner */
     #n8n-chat .message.system{text-align:center;font-size:13px;color:#666 !important;font-style:italic;margin:6px 0}
     #cooldownBanner{position:absolute;right:12px;top:12px;z-index:2;background:#111;color:#fff;font-size:12px;
       padding:8px 10px;border-radius:10px;box-shadow:0 6px 16px rgba(0,0,0,.25);display:none}
@@ -86,9 +93,12 @@
       <strong>Selamat datang! 👋</strong><br>
       Tanyakan apa sahaja tentang Kuching &amp; Sarawak (makanan, tempat, pengangkutan, waktu operasi).<br>
       • Jangan spam — satu mesej pada satu masa. <strong>Cooldown 10s</strong> selepas setiap hantar.<br>
-      • Pautan boleh diklik: Sarawak Tourism – https://sarawaktourism.com, Kuiz – https://forms.gle/yJ3KPyNpUvEoaG9H9
+      • Pautan boleh diklik:
+        <a href="https://sarawaktourism.com" target="_blank" rel="noopener">Sarawak Tourism</a> |
+        <a href="https://forms.gle/yJ3KPyNpUvEoaG9H9" target="_blank" rel="noopener">Kuiz</a>
     </div>
 
+    <!-- reCAPTCHA gate -->
     <div id="gate" role="dialog" aria-modal="true">
       <div class="gate-card">
         <div class="gate-title">Before we start</div>
@@ -109,11 +119,11 @@
     import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
 
     // --- CONFIG ---
-    const RECAPTCHA_SITE_KEY = '6Lf0xsErAAAAAM7vVvRIqb5JI_2Kf0p10aGzJ88W'; // must match the script tag
+    const RECAPTCHA_SITE_KEY = '6Lf0xsErAAAAAM7vVvRIqb5JI_2Kf0p10aGzJ88W'; // must match script tag
     const VERIFY_WEBHOOK     = 'https://n8n.meistericham.com/webhook/verify-captcha';
     const CHAT_WEBHOOK       = 'https://n8n.meistericham.com/webhook/aichatbot';
 
-    // Guards
+    // Guards / session
     const COOLDOWN_MS = 10_000, FAILSAFE_UNLOCK_MS = 25_000, IDLE_RESET_MIN = 3;
     const SESSION_KEY = 'sam_session_locked', LAST_ACTIVITY = 'sam_last_activity';
 
@@ -122,10 +132,9 @@
     const hide = el => el && el.classList.remove('show');
 
     function injectSystemMessage(t){
-      const m=$('#n8n-chat .messages'); if(!m) return;
+      const m=$('#n8n-chat .messages'); if(!m) return null;
       const d=document.createElement('div'); d.className='message system'; d.textContent=t;
-      m.appendChild(d); m.scrollTop=m.scrollHeight;
-      return d; // return node so we can update it
+      m.appendChild(d); m.scrollTop=m.scrollHeight; return d;
     }
 
     function installWelcomeAutoHide(){
@@ -171,7 +180,7 @@
         const remainingMs = cooldownRemaining();
         const secs = Math.ceil(remainingMs/1000);
         if (!cooldownLine) cooldownLine = injectSystemMessage(`⏳ Tunggu ${secs}s sebelum mesej seterusnya.`);
-        else cooldownLine.textContent = `⏳ Tunggu ${secs}s sebelum mesej seterusnya.`;
+        else if (cooldownLine) cooldownLine.textContent = `⏳ Tunggu ${secs}s sebelum mesej seterusnya.`;
 
         const b=$('#cooldownBanner');
         b.textContent = `⏳ Sila tunggu ${secs} saat sebelum hantar soalan baharu.`;
@@ -207,34 +216,38 @@
       const root=document.getElementById('n8n-chat'); if(!root) return;
       const box=()=>root.querySelector('textarea, input[type="text"]');
       const sendBtn=()=>root.querySelector('.chat-input button');
+      const disable=on=>setControlsDisabled(on);
 
-      // When assistant replies, only unlock if no active countdown
+      // Unlock on assistant reply — but DO NOT override active cooldown
       const mo=new MutationObserver(()=>{ if(!inFlight) return;
         const bot=root.querySelector('.message.assistant,.assistant,.bot');
-        if(bot){ inFlight=false; if(!cooldownTimer) setControlsDisabled(false); touchSession(); }
+        if(bot){ inFlight=false; if (!cooldownTimer) disable(false); touchSession(); }
       });
       mo.observe(root,{childList:true,subtree:true});
 
-      const safety=()=>setTimeout(()=>{ inFlight=false; if(!cooldownTimer) setControlsDisabled(false); }, FAILSAFE_UNLOCK_MS);
+      const safety=()=>setTimeout(()=>{ inFlight=false; if (!cooldownTimer) disable(false); }, FAILSAFE_UNLOCK_MS);
 
+      // ENTER
       root.addEventListener('keydown',(e)=>{ if(e.key!=='Enter') return;
         const b=box(); const val=(b?.value||'').trim(); if(!val){ e.preventDefault(); return; }
         if(!isLocked()) lockSession(); else touchSession();
         if(blockIfCooling(e)) return;
         if(val===lastText && Date.now()-lastSendAt<COOLDOWN_MS){ e.preventDefault(); injectSystemMessage('⚠️ Mesej sama telah dihantar. Cuba ubah soalan.'); return; }
-        inFlight=true; lastSendAt=Date.now(); lastText=val; setControlsDisabled(true); safety();
-        // Start the visible 10s countdown immediately
+        inFlight=true; lastSendAt=Date.now(); lastText=val; disable(true); safety();
+        // 👉 Start the visible countdown now
         startCooldown(10);
       }, true);
 
+      // CLICK
       root.addEventListener('click',(e)=>{ const t=e.target;
         if(!(t instanceof HTMLElement) || !t.closest('.chat-input button')) return;
         const b=box(); const val=(b?.value||'').trim(); if(!val){ e.preventDefault(); return; }
         if(!isLocked()) lockSession(); else touchSession();
         if(blockIfCooling(e)) return;
         if(val===lastText && Date.now()-lastSendAt<COOLDOWN_MS){ e.preventDefault(); injectSystemMessage('⚠️ Mesej sama telah dihantar. Cuba ubah soalan.'); return; }
-        inFlight=true; lastSendAt=Date.now(); lastText=val; setControlsDisabled(true); setTimeout(()=>{ inFlight=false; if(!cooldownTimer) setControlsDisabled(false); }, FAILSAFE_UNLOCK_MS);
-        // Start the visible 10s countdown immediately
+        inFlight=true; lastSendAt=Date.now(); lastText=val; disable(true);
+        setTimeout(()=>{ inFlight=false; if (!cooldownTimer) disable(false); }, FAILSAFE_UNLOCK_MS);
+        // 👉 Start the visible countdown now
         startCooldown(10);
       }, true);
 
@@ -274,25 +287,20 @@
       installWelcomeAutoHide();
     }
 
-    // Promise wrapper for grecaptcha.ready
-    function grecaptchaReady(){
-      return new Promise((resolve) => {
-        try { window.grecaptcha.ready(resolve); }
-        catch(e){ resolve(); }
-      });
-    }
+    const grecaptchaReady = () =>
+      new Promise((resolve)=>{ try{ window.grecaptcha.ready(resolve); } catch{ resolve(); } });
 
     async function handleStart(){
       const btn = $('#btnStart');
       btn.disabled = true;
-      try {
+      try{
         await grecaptchaReady();
         const token = await grecaptcha.execute(RECAPTCHA_SITE_KEY, { action:'start_chat' });
         if(!token){ alert('reCAPTCHA gagal. Cuba semula.'); btn.disabled=false; return; }
         const ok = await verifyCaptcha(token);
         if(!ok){ alert('Verifikasi reCAPTCHA gagal. Sila cuba lagi.'); btn.disabled=false; return; }
         await openChat();
-      } catch (err) {
+      }catch(err){
         console.error('Start error', err);
         alert('Tidak dapat memulakan chat sekarang. Cuba lagi.');
         btn.disabled = false;
