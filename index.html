@@ -187,52 +187,70 @@
       if (btn) btn.disabled = on;
     }
 
-    // 👉 controls the visible countdown + disables input
-    function startCooldown(seconds = 10){
-      if (cooldownTimer) return;            // don’t double-start
-      cooldownEndAt = Date.now() + seconds*1000;
-      setControlsDisabled(true);
+    // 👉 kawal countdown + disable input (dengan tunggu .messages siap)
+async function startCooldown(seconds = 10){
+  if (cooldownTimer) return; // elak double-start
 
-      const update = () => {
-        const remainingMs = cooldownRemaining();
-        const secs = Math.ceil(remainingMs/1000);
+  // Tunggu sehingga container mesej wujud
+  const ensureMessages = () => new Promise(resolve => {
+    const have = () => document.querySelector('#n8n-chat .messages');
+    if (have()) return resolve();
+    const i = setInterval(() => { if (have()) { clearInterval(i); resolve(); } }, 200);
+  });
+  await ensureMessages();
 
-        // Update system line (inside chat)
-        if (!cooldownLine) cooldownLine = injectSystemMessage(`⏳ Tunggu ${secs}s sebelum mesej seterusnya.`);
-        else cooldownLine.textContent = `⏳ Tunggu ${secs}s sebelum mesej seterusnya.`;
+  cooldownEndAt = Date.now() + seconds * 1000;
+  setControlsDisabled(true);
 
-        // Update small banner at top-right
-        const b=$('#cooldownBanner');
-        b.textContent = `⏳ Sila tunggu ${secs} saat sebelum hantar soalan baharu.`;
-        show(b);
+  const update = () => {
+    const remainingMs = cooldownRemaining();
+    const secs = Math.ceil(remainingMs / 1000);
 
-        if (remainingMs <= 0){
-          clearInterval(cooldownTimer);
-          cooldownTimer=null;
-          cooldownLine=null;
-          hide(b);
-          setControlsDisabled(false);
-          injectSystemMessage('✅ Anda boleh hantar mesej baru sekarang.');
-        }
-      };
+    // Teks system dalam chat
+    if (!cooldownLine) cooldownLine = injectSystemMessage(`⏳ Tunggu ${secs}s sebelum mesej seterusnya.`);
+    else cooldownLine.textContent = `⏳ Tunggu ${secs}s sebelum mesej seterusnya.`;
 
-      update();                              // show immediately
-      cooldownTimer = setInterval(update, 1000);
+    // Banner kecil di penjuru kanan atas
+    const b = $('#cooldownBanner');
+    b.textContent = `⏳ Sila tunggu ${secs} saat sebelum hantar soalan baharu.`;
+    show(b);
+
+    if (remainingMs <= 0) {
+      clearInterval(cooldownTimer);
+      cooldownTimer = null;
+      cooldownLine = null;
+      hide(b);
+      setControlsDisabled(false);
+      injectSystemMessage('✅ Anda boleh hantar mesej baru sekarang.');
     }
+  };
 
-    function blockIfCooling(e){
-      const rem=cooldownRemaining();
-      if(rem>0 || inFlight){
-        e?.preventDefault();
-        const secs = Math.ceil(rem/1000) || Math.ceil(COOLDOWN_MS/1000);
-        const b=$('#cooldownBanner');
-        b.textContent=`⏳ Sila tunggu ${secs} saat sebelum hantar soalan baharu.`;
-        show(b); setTimeout(()=>hide(b),1200);
-        if (!cooldownTimer) cooldownLine = injectSystemMessage(`⏳ Tunggu ${secs}s sebelum mesej seterusnya.`);
-        return true;
+  update();                    // papar serta-merta
+  cooldownTimer = setInterval(update, 1000);
+}
+
+function blockIfCooling(e){
+  const rem = cooldownRemaining();
+  if (rem > 0 || inFlight) {
+    e?.preventDefault();
+    const secs = Math.ceil(rem / 1000) || Math.ceil(COOLDOWN_MS / 1000);
+
+    // Banner
+    const b = $('#cooldownBanner');
+    b.textContent = `⏳ Sila tunggu ${secs} saat sebelum hantar soalan baharu.`;
+    show(b); setTimeout(() => hide(b), 1200);
+
+    // Jika timer belum berjalan, pastikan ada system line
+    if (!cooldownTimer) {
+      const messages = document.querySelector('#n8n-chat .messages');
+      if (messages) {
+        cooldownLine = injectSystemMessage(`⏳ Tunggu ${secs}s sebelum mesej seterusnya.`);
       }
-      return false;
     }
+    return true;
+  }
+  return false;
+}
 
     /* ===== Section: Attach guards AFTER chat input exists ===== */
     function waitForInput(timeout=6000){
