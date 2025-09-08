@@ -240,60 +240,126 @@
     }
 
     /* =========================================================
-       SEGMENT D — Guards: intercept input & start cooldown AFTER bot reply
-    ==========================================================*/
-    function installGuards(){
-      const root=document.getElementById('n8n-chat'); if(!root) return;
+   SEGMENT D — Guards: intercept input & start cooldown AFTER bot reply
+   (more robust assistant-message detector + debug logs)
+==========================================================*/
+function installGuards(){
+  const root = document.getElementById('n8n-chat'); 
+  if (!root) return;
 
-      const box=()=>root.querySelector('textarea, input[type="text"]');
-      const sendBtn=()=>root.querySelector('.chat-input button');
-      const disable=on=>setControlsDisabled(on);
+  const box     = () => root.querySelector('textarea, input[type="text"]');
+  const sendBtn = () => root.querySelector('.chat-input button');
+  const disable = on => setControlsDisabled(on);
 
-      // 1) Detect bot reply → start cooldown here
-      const mo=new MutationObserver(()=>{ 
-        if (!inFlight) return;
-        const bot = root.querySelector('.message.assistant, .assistant, .bot');
-        if (bot) {
-          console.log('[debug] bot reply detected → start cooldown');
+  // --- Helper: is this node an assistant/bot message?
+  const assistantSelectors = [
+    '.assistant',
+    '.message.assistant',
+    '.message.bot',
+    '.bot',
+    '.from-bot',
+    '.message--assistant',
+    '[data-source="assistant"]',
+    '[data-role="assistant"]'
+  ];
+  function isAssistantNode(node) {
+    if (!(node instanceof HTMLElement)) return false;
+    // 1) direct match
+    if (assistantSelectors.some(sel => node.matches(sel))) return true;
+    // 2) descendant match
+    if (assistantSelectors.some(sel => node.querySelector(sel))) return true;
+    // 3) heuristic: message container that is NOT clearly a user bubble
+    const cls = node.className || '';
+    if (/\bmessage\b/.test(cls) && !/\buser\b/.test(cls) && !/\bfrom-user\b/.test(cls)) {
+      return true;
+    }
+    return false;
+  }
+
+  // --- Observe DOM for new assistant messages while a send is in-flight
+  const mo = new MutationObserver(mutations => {
+    if (!inFlight) return;
+    for (const m of mutations) {
+      for (const n of m.addedNodes) {
+        if (isAssistantNode(n)) {
+          console.log('[debug] assistant message detected → start cooldown');
           inFlight = false;
           touchSession();
-          startCooldown(10); // 🔥 start countdown ONLY after reply
+          startCooldown(10);              // 🔥 start visible 10s timer here
+          return;
         }
-      });
-      mo.observe(root,{childList:true,subtree:true});
-
-      // 2) Safety unlock (in case stream stalls); if cooldown running we still stay disabled
-      const safety=()=>setTimeout(()=>{ inFlight=false; if (!cooldownTimer) disable(false); }, FAILSAFE_UNLOCK_MS);
-
-      // 3) Intercept ENTER
-      root.addEventListener('keydown',(e)=>{ 
-        if(e.key!=='Enter') return;
-        const b=box(); const val=(b?.value||'').trim();
-        if(!val){ e.preventDefault(); return; }
-        if(!isLocked()) lockSession(); else touchSession();
-        if(blockIfCooling(e)) return;
-        if(val===lastText && Date.now()-lastSendAt<COOLDOWN_MS){ e.preventDefault(); injectSystemMessage('⚠️ Mesej sama telah dihantar. Cuba ubah soalan.'); return; }
-        inFlight=true; lastSendAt=Date.now(); lastText=val; disable(true); safety();
-      }, true);
-
-      // 4) Intercept SEND click
-      root.addEventListener('click',(e)=>{ 
-        const t=e.target;
-        if(!(t instanceof HTMLElement) || !t.closest('.chat-input button')) return;
-        const b=box(); const val=(b?.value||'').trim();
-        if(!val){ e.preventDefault(); return; }
-        if(!isLocked()) lockSession(); else touchSession();
-        if(blockIfCooling(e)) return;
-        if(val===lastText && Date.now()-lastSendAt<COOLDOWN_MS){ e.preventDefault(); injectSystemMessage('⚠️ Mesej sama telah dihantar. Cuba ubah soalan.'); return; }
-        inFlight=true; lastSendAt=Date.now(); lastText=val; disable(true);
-        setTimeout(()=>{ inFlight=false; if (!cooldownTimer) disable(false); }, FAILSAFE_UNLOCK_MS);
-      }, true);
-
-      // 5) Idle unlock (3 min)
-      setInterval(()=>{ const last=Number(localStorage.getItem(LAST_ACTIVITY)||0);
-        if(Date.now()-last>IDLE_RESET_MIN*60_000){ unlockSession(); injectSystemMessage('ℹ️ Sesi dinyahaktif selepas tidak aktif. Anda boleh sambung bersembang.'); }
-      }, 30_000);
+      }
     }
+  });
+  mo.observe(root, { childList: true, subtree: true });
+
+  // Safety unlock in case the stream stalls; if cooldown is running we stay disabled
+  const safety = () => setTimeout(() => { 
+    inFlight = false; 
+    if (!cooldownTimer) disable(false); 
+  }, FAILSAFE_UNLOCK_MS);
+
+  // Intercept ENTER
+  root.addEventListener('keydown', (e) => { 
+    if (e.key !== 'Enter') return;
+    const b = box(); 
+    const val = (b?.value || '').trim();
+    if (!val) { e.preventDefault(); return; }
+
+    if (!isLocked()) lockSession(); else touchSession();
+    if (blockIfCooling(e)) return;
+
+    // duplicate guard inside window
+    if (val === lastText && Date.now() - lastSendAt < COOLDOWN_MS) {
+      e.preventDefault();
+      injectSystemMessage('⚠️ Mesej sama telah dihantar. Cuba ubah soalan.');
+      return;
+    }
+
+    inFlight   = true;
+    lastSendAt = Date.now();
+    lastText   = val;
+    disable(true);
+    safety();
+  }, true);
+
+  // Intercept SEND click
+  root.addEventListener('click', (e) => {
+    const t = e.target;
+    if (!(t instanceof HTMLElement) || !t.closest('.chat-input button')) return;
+
+    const b = box(); 
+    const val = (b?.value || '').trim();
+    if (!val) { e.preventDefault(); return; }
+
+    if (!isLocked()) lockSession(); else touchSession();
+    if (blockIfCooling(e)) return;
+
+    if (val === lastText && Date.now() - lastSendAt < COOLDOWN_MS) {
+      e.preventDefault();
+      injectSystemMessage('⚠️ Mesej sama telah dihantar. Cuba ubah soalan.');
+      return;
+    }
+
+    inFlight   = true;
+    lastSendAt = Date.now();
+    lastText   = val;
+    disable(true);
+    setTimeout(() => { 
+      inFlight = false; 
+      if (!cooldownTimer) disable(false); 
+    }, FAILSAFE_UNLOCK_MS);
+  }, true);
+
+  // Idle unlock (3 min)
+  setInterval(() => {
+    const last = Number(localStorage.getItem(LAST_ACTIVITY) || 0);
+    if (Date.now() - last > IDLE_RESET_MIN * 60_000) {
+      unlockSession();
+      injectSystemMessage('ℹ️ Sesi dinyahaktif selepas tidak aktif. Anda boleh sambung bersembang.');
+    }
+  }, 30_000);
+}
 
     /* =========================================================
        SEGMENT E — Captcha verify + Chat boot
