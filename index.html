@@ -207,6 +207,61 @@ function lockSession(){ localStorage.setItem(SESSION_KEY,'1'); localStorage.setI
 function touchSession(){ localStorage.setItem(LAST_ACTIVITY,String(Date.now())); }
 function unlockSession(){ localStorage.removeItem(SESSION_KEY); }
 
+    /* =========================================================
+       SEGMENT C — Countdown state + logic
+    ==========================================================*/
+    let lastSendAt=0,lastText='',inFlight=false;
+    let cooldownEndAt = 0;
+    let cooldownTimer = null;
+    let cooldownLine  = null;
+
+    const cooldownRemaining = () =>
+      Math.max(0, (cooldownEndAt || (lastSendAt+COOLDOWN_MS)) - Date.now());
+
+    function setControlsDisabled(on){
+      const root = document.getElementById('n8n-chat');
+      const box = root?.querySelector('textarea, input[type="text"]');
+      const btn = root?.querySelector('.chat-input button');
+      if (box) box.disabled = on;
+      if (btn) btn.disabled = on;
+    }
+
+    // 👉 controls the visible countdown + disables input
+    function startCooldown(seconds = 10){
+      if (cooldownTimer) { console.log('[debug] cooldown already running'); return; }
+      cooldownEndAt = Date.now() + seconds*1000;
+      console.log('[debug] startCooldown', seconds, 'seconds');
+
+      setControlsDisabled(true);
+
+      const update = () => {
+        const remainingMs = cooldownRemaining();
+        const secs = Math.ceil(remainingMs/1000);
+        console.log('[debug] tick', secs);
+
+        // Update system line (inside chat)
+        if (!cooldownLine) cooldownLine = injectSystemMessage(`⏳ Tunggu ${secs}s sebelum mesej seterusnya.`);
+        else cooldownLine.textContent = `⏳ Tunggu ${secs}s sebelum mesej seterusnya.`;
+
+        // Update small banner at top-right
+        const b=$('#cooldownBanner');
+        b.textContent = `⏳ Sila tunggu ${secs} saat sebelum hantar soalan baharu.`;
+        show(b);
+
+        if (remainingMs <= 0){
+          clearInterval(cooldownTimer);
+          cooldownTimer=null;
+          cooldownLine=null;
+          hide(b);
+          setControlsDisabled(false);
+          injectSystemMessage('✅ Anda boleh hantar mesej baru sekarang.');
+        }
+      };
+
+      update(); // show immediately
+      cooldownTimer = setInterval(update, 1000);
+    }
+
     // Block sends if cooling or a request is still in-flight
     function blockIfCooling(e){
       const rem=cooldownRemaining();
