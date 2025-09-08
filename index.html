@@ -140,72 +140,38 @@
     const hide = el => el && el.classList.remove('show');
 
 /* =========================================================
-   SEGMENT B — Utility helpers & system messages  (REPLACED)
-==========================================================*/
+   SEGMENT B — Utility helpers & system messages
+   ==========================================================*/
+function injectSystemMessage(text){
+  // n8n’s current DOM uses .chat-window > main.chat-body
+  // Try several containers so it works across versions.
+  const host = document.querySelector('#n8n-chat');
+  if (!host) { console.warn('[system] host not found'); return null; }
 
-// Simple shorthands
-const $ = (s, r = document) => r.querySelector(s);
-const show = el => el && el.classList.add('show');
-const hide = el => el && el.classList.remove('show');
+  const container =
+    host.querySelector('.chat-body') ||                // modern builds
+    host.querySelector('.chat-window') ||              // fallback
+    host.querySelector('.chat-window-wrapper') ||      // fallback
+    null;
 
-// Find a reliable container to append system lines
-function getMessagesContainer() {
-  const host = document.getElementById('n8n-chat');
-  if (!host) return null;
-
-  // Try the common n8n message containers (different builds use different classnames)
-  const selectors = [
-    '.messages',
-    '[data-testid="messages"]',
-    '.chat-messages',
-    '.n8n-chat-messages',
-    '.message-list',
-  ];
-  for (const s of selectors) {
-    const el = host.querySelector(s);
-    if (el) return el;
+  if (!container) {
+    console.warn('[system] messages container not found');
+    return null;
   }
 
-  // Fallback: last scrollable element with children
-  const candidates = [...host.querySelectorAll('*')].filter(e => {
-    const cs = getComputedStyle(e);
-    return (cs.overflowY === 'auto' || cs.overflowY === 'scroll') && e.children.length > 0;
-  });
-  if (candidates.length) return candidates[candidates.length - 1];
-
-  console.warn('[system] messages container not found; appending to host');
-  return host;
-}
-
-function injectSystemMessage(text) {
-  const container = getMessagesContainer();
-  if (!container) return null;
   const div = document.createElement('div');
   div.className = 'message system';
+  div.style.margin = '6px 10px';
+  div.style.textAlign = 'center';
+  div.style.fontSize = '13px';
+  div.style.color = '#666';
+  div.style.fontStyle = 'italic';
   div.textContent = text;
+
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
-  return div; // we update this node during countdown
+  return div; // we update this element every second during countdown
 }
-
-// Hide the blue instruction note once the first chat message exists
-function installWelcomeAutoHide() {
-  const note = $('#welcomeNote'), host = $('#n8n-chat');
-  if (!note || !host) return;
-  const mo = new MutationObserver(() => {
-    if (host.querySelector('.message')) { note.classList.add('hidden'); mo.disconnect(); }
-  });
-  mo.observe(host, { childList: true, subtree: true });
-}
-
-// Session helpers (unchanged)
-function isLocked(){ const last=Number(localStorage.getItem(LAST_ACTIVITY)||0);
-  if(Date.now()-last>IDLE_RESET_MIN*60_000){ localStorage.removeItem(SESSION_KEY); }
-  return !!localStorage.getItem(SESSION_KEY);
-}
-function lockSession(){ localStorage.setItem(SESSION_KEY,'1'); localStorage.setItem(LAST_ACTIVITY,String(Date.now())); }
-function touchSession(){ localStorage.setItem(LAST_ACTIVITY,String(Date.now())); }
-function unlockSession(){ localStorage.removeItem(SESSION_KEY); }
 
     /* =========================================================
        SEGMENT C — Countdown state + logic
@@ -289,7 +255,7 @@ function installGuards(){
   const disable = on => setControlsDisabled(on);
 
   // Which nodes look like assistant messages?
-  const assistantSelectors = [
+   const assistantSelectors = [
     '.assistant',
     '.message.assistant',
     '.message.bot',
@@ -298,7 +264,11 @@ function installGuards(){
     '.message--assistant',
     '[data-source="assistant"]',
     '[data-role="assistant"]',
+    // n8n bubbles commonly live inside main.chat-body:
+    '.chat-body .message',
+    '.chat-message'
   ];
+
   function isAssistantNode(node) {
     if (!(node instanceof HTMLElement)) return false;
     if (assistantSelectors.some(sel => node.matches(sel))) return true;
