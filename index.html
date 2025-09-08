@@ -125,6 +125,7 @@
       const m=$('#n8n-chat .messages'); if(!m) return;
       const d=document.createElement('div'); d.className='message system'; d.textContent=t;
       m.appendChild(d); m.scrollTop=m.scrollHeight;
+      return d; // return node so we can update it
     }
 
     function installWelcomeAutoHide(){
@@ -141,16 +142,62 @@
     function touchSession(){ localStorage.setItem(LAST_ACTIVITY,String(Date.now())); }
     function unlockSession(){ localStorage.removeItem(SESSION_KEY); }
 
+    // ===== Countdown state =====
     let lastSendAt=0,lastText='',inFlight=false;
-    const cooldownRemaining=()=>Math.max(0,COOLDOWN_MS-(Date.now()-lastSendAt));
+    let cooldownEndAt = 0;
+    let cooldownTimer = null;
+    let cooldownLine  = null;
+
+    const cooldownRemaining = () =>
+      Math.max(0, (cooldownEndAt || (lastSendAt+COOLDOWN_MS)) - Date.now());
+
+    function setControlsDisabled(on){
+      const root = document.getElementById('n8n-chat');
+      const box = root?.querySelector('textarea, input[type="text"]');
+      const btn = root?.querySelector('.chat-input button');
+      if (box) box.disabled = on;
+      if (btn) btn.disabled = on;
+    }
+
+    function startCooldown(seconds = 10){
+      // Prevent double-start
+      if (cooldownTimer) return;
+
+      cooldownEndAt = Date.now() + seconds*1000;
+      setControlsDisabled(true);
+
+      // Create/update system line + banner
+      const update = () => {
+        const remainingMs = cooldownRemaining();
+        const secs = Math.ceil(remainingMs/1000);
+        if (!cooldownLine) cooldownLine = injectSystemMessage(`⏳ Tunggu ${secs}s sebelum mesej seterusnya.`);
+        else cooldownLine.textContent = `⏳ Tunggu ${secs}s sebelum mesej seterusnya.`;
+
+        const b=$('#cooldownBanner');
+        b.textContent = `⏳ Sila tunggu ${secs} saat sebelum hantar soalan baharu.`;
+        show(b);
+
+        if (remainingMs <= 0){
+          clearInterval(cooldownTimer); cooldownTimer=null; cooldownLine=null;
+          hide(b);
+          setControlsDisabled(false);
+          injectSystemMessage('✅ Anda boleh hantar mesej baru sekarang.');
+        }
+      };
+
+      update();
+      cooldownTimer = setInterval(update, 1000);
+    }
+
     function blockIfCooling(e){
       const rem=cooldownRemaining();
       if(rem>0 || inFlight){
         e?.preventDefault();
+        const secs = Math.ceil(rem/1000) || Math.ceil(COOLDOWN_MS/1000);
         const b=$('#cooldownBanner');
-        b.textContent=`⏳ Sila tunggu ${Math.ceil(rem/1000)} saat sebelum hantar soalan baharu.`;
+        b.textContent=`⏳ Sila tunggu ${secs} saat sebelum hantar soalan baharu.`;
         show(b); setTimeout(()=>hide(b),1200);
-        injectSystemMessage(`⏳ Sila tunggu ${Math.ceil(rem/1000)}s sebelum soalan berikutnya.`);
+        if (!cooldownTimer) cooldownLine = injectSystemMessage(`⏳ Tunggu ${secs}s sebelum mesej seterusnya.`);
         return true;
       }
       return false;
@@ -160,22 +207,24 @@
       const root=document.getElementById('n8n-chat'); if(!root) return;
       const box=()=>root.querySelector('textarea, input[type="text"]');
       const sendBtn=()=>root.querySelector('.chat-input button');
-      const disable=on=>{ box()&&(box().disabled=on); sendBtn()&&(sendBtn().disabled=on); };
 
+      // When assistant replies, only unlock if no active countdown
       const mo=new MutationObserver(()=>{ if(!inFlight) return;
         const bot=root.querySelector('.message.assistant,.assistant,.bot');
-        if(bot){ inFlight=false; disable(false); touchSession(); }
+        if(bot){ inFlight=false; if(!cooldownTimer) setControlsDisabled(false); touchSession(); }
       });
       mo.observe(root,{childList:true,subtree:true});
 
-      const safety=()=>setTimeout(()=>{ inFlight=false; disable(false); }, FAILSAFE_UNLOCK_MS);
+      const safety=()=>setTimeout(()=>{ inFlight=false; if(!cooldownTimer) setControlsDisabled(false); }, FAILSAFE_UNLOCK_MS);
 
       root.addEventListener('keydown',(e)=>{ if(e.key!=='Enter') return;
         const b=box(); const val=(b?.value||'').trim(); if(!val){ e.preventDefault(); return; }
         if(!isLocked()) lockSession(); else touchSession();
         if(blockIfCooling(e)) return;
         if(val===lastText && Date.now()-lastSendAt<COOLDOWN_MS){ e.preventDefault(); injectSystemMessage('⚠️ Mesej sama telah dihantar. Cuba ubah soalan.'); return; }
-        inFlight=true; lastSendAt=Date.now(); lastText=val; disable(true); safety();
+        inFlight=true; lastSendAt=Date.now(); lastText=val; setControlsDisabled(true); safety();
+        // Start the visible 10s countdown immediately
+        startCooldown(10);
       }, true);
 
       root.addEventListener('click',(e)=>{ const t=e.target;
@@ -184,10 +233,12 @@
         if(!isLocked()) lockSession(); else touchSession();
         if(blockIfCooling(e)) return;
         if(val===lastText && Date.now()-lastSendAt<COOLDOWN_MS){ e.preventDefault(); injectSystemMessage('⚠️ Mesej sama telah dihantar. Cuba ubah soalan.'); return; }
-        inFlight=true; lastSendAt=Date.now(); lastText=val; disable(true);
-        setTimeout(()=>{ inFlight=false; disable(false); }, FAILSAFE_UNLOCK_MS);
+        inFlight=true; lastSendAt=Date.now(); lastText=val; setControlsDisabled(true); setTimeout(()=>{ inFlight=false; if(!cooldownTimer) setControlsDisabled(false); }, FAILSAFE_UNLOCK_MS);
+        // Start the visible 10s countdown immediately
+        startCooldown(10);
       }, true);
 
+      // Idle unlock
       setInterval(()=>{ const last=Number(localStorage.getItem(LAST_ACTIVITY)||0);
         if(Date.now()-last>IDLE_RESET_MIN*60_000){ unlockSession(); injectSystemMessage('ℹ️ Sesi dinyahaktif selepas tidak aktif. Anda boleh sambung bersembang.'); }
       }, 30_000);
@@ -223,29 +274,23 @@
       installWelcomeAutoHide();
     }
 
-    // ✅ FIXED: use a Promise wrapper for grecaptcha.ready
+    // Promise wrapper for grecaptcha.ready
     function grecaptchaReady(){
       return new Promise((resolve) => {
         try { window.grecaptcha.ready(resolve); }
-        catch(e){ resolve(); } // in case the object is already ready
+        catch(e){ resolve(); }
       });
     }
 
     async function handleStart(){
       const btn = $('#btnStart');
       btn.disabled = true;
-
       try {
-        // Wait until the API is ready (correct usage)
         await grecaptchaReady();
-
-        // Execute with your site key (use the constant)
         const token = await grecaptcha.execute(RECAPTCHA_SITE_KEY, { action:'start_chat' });
-        if(!token){ alert('reCAPTCHA gagal. Cuba semula.'); return; }
-
+        if(!token){ alert('reCAPTCHA gagal. Cuba semula.'); btn.disabled=false; return; }
         const ok = await verifyCaptcha(token);
         if(!ok){ alert('Verifikasi reCAPTCHA gagal. Sila cuba lagi.'); btn.disabled=false; return; }
-
         await openChat();
       } catch (err) {
         console.error('Start error', err);
