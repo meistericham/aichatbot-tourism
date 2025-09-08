@@ -5,6 +5,8 @@
   <title>Sarawak AI Tourism Assistant</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" />
+  <!-- reCAPTCHA v3 -->
+  <script src="https://www.google.com/recaptcha/api.js?render=YOUR_RECAPTCHA_SITE_KEY"></script>
 
   <style>
     html, body { height: 100%; margin: 0; }
@@ -15,6 +17,7 @@
       color: #fff;
       font-family: "Segoe UI", Arial, sans-serif;
       min-height: 100vh;
+      overflow-x: hidden;
     }
 
     /* Header */
@@ -35,7 +38,7 @@
     /* Chat card */
     #chatCard {
       max-width: 1080px;
-      width: 92%;
+      width: min(92%, 1080px);
       margin: 24px auto;
       background: #fff;
       border-radius: 20px;
@@ -48,7 +51,34 @@
       position: relative;
     }
 
-    /* Welcome/instruction panel (inside the white card, above chat) */
+    /* Gate overlay (reCAPTCHA + Start) */
+    #gate {
+      position: absolute; inset: 0; z-index: 3;
+      display: grid; place-items: center;
+      background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,.96));
+    }
+    #gate.hidden { display: none; }
+    .gate-card {
+      width: min(560px, 92vw);
+      background: #fff;
+      border: 1px solid #e9ecf3;
+      border-radius: 16px;
+      box-shadow: 0 12px 30px rgba(0,0,0,.08);
+      padding: clamp(18px, 4vw, 26px);
+      text-align: center;
+      color: #111;
+    }
+    .gate-title { font-size: 18px; font-weight: 800; margin: 0 0 6px; }
+    .gate-text { font-size: 14px; color: #444; margin: 0 0 14px; line-height: 1.6; }
+    .gate-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 10px; padding: 12px 18px; font-size: 15px; font-weight: 700;
+      color: #111; background: #d6ff6b; border: 0; border-radius: 999px; cursor: pointer;
+      box-shadow: 0 8px 24px rgba(214,255,107,.25);
+    }
+    .gate-hint { margin-top: 10px; font-size: 12px; color: #666; }
+
+    /* Instruction panel (inside white card) */
     #welcomeNote {
       position: absolute;
       top: 12px; left: 12px; right: 12px;
@@ -66,7 +96,7 @@
     /* Chat host */
     #n8n-chat { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 
-    /* Ensure messages area scrolls; keep input/footer visible */
+    /* Messages + footer visible */
     #n8n-chat .messages { flex: 1; overflow-y: auto; padding: 20px; }
     #n8n-chat .chat-footer {
       display: flex !important;
@@ -93,7 +123,7 @@
       background: #111 !important; color: #fff !important;
     }
 
-    /* Hide n8n branding & launcher */
+    /* Hide n8n branding & launcher & header */
     #n8n-chat .chat-header,
     #n8n-chat [data-testid="powered-by"],
     #n8n-chat .powered-by,
@@ -101,7 +131,7 @@
     #n8n-chat [data-testid="launcher"],
     .chat-launcher { display:none !important; }
 
-    /* System messages (cooldown notices inside chat) */
+    /* System notices (cooldown) */
     #n8n-chat .message.system {
       text-align: center;
       font-size: 13px;
@@ -110,9 +140,9 @@
       margin: 6px 0;
     }
 
-    /* Cooldown banner (top-right inside card) */
+    /* Cooldown mini-banner */
     #cooldownBanner {
-      position: absolute; right: 12px; top: 12px; z-index: 3;
+      position: absolute; right: 12px; top: 12px; z-index: 2;
       background: #111; color:#fff;
       font-size: 12px; padding: 8px 10px; border-radius: 10px;
       box-shadow: 0 6px 16px rgba(0,0,0,.25);
@@ -148,9 +178,20 @@
     <div id="welcomeNote">
       <strong>Selamat datang! 👋</strong><br>
       Tanyakan apa sahaja tentang Kuching &amp; Sarawak (makanan, tempat, pengangkutan, waktu operasi).<br>
-      • Jangan spam — satu mesej pada satu masa.<br>
-      • Ada <strong>cooldown 10 saat</strong> selepas anda menghantar soalan.<br>
-      • Pautan yang dikongsi akan boleh diklik.
+      • Jangan spam — satu mesej pada satu masa. <strong>Cooldown 10s</strong> selepas setiap hantar.<br>
+      • Pautan boleh diklik: Sarawak Tourism – https://sarawaktourism.com, Kuiz – https://forms.gle/yJ3KPyNpUvEoaG9H9
+    </div>
+
+    <!-- reCAPTCHA gate -->
+    <div id="gate" role="dialog" aria-modal="true">
+      <div class="gate-card">
+        <div class="gate-title">Before we start</div>
+        <p class="gate-text">
+          Untuk elak spam & bot, sila tekan “Start Chat”. Kami akan sahkan anda manusia (reCAPTCHA) dan terus buka chat.
+        </p>
+        <button id="btnStart" class="gate-btn" type="button">Start Chat</button>
+        <div class="gate-hint">Tip: Selepas hantar mesej, tunggu 10s sebelum mesej seterusnya.</div>
+      </div>
     </div>
 
     <!-- n8n chat mounts here -->
@@ -164,17 +205,25 @@
   <script type="module">
     import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
 
-    const WEBHOOK_URL = 'https://n8n.meistericham.com/webhook/aichatbot';
+    // ======= CONFIG =======
+    const CHAT_WEBHOOK = 'https://n8n.meistericham.com/webhook/aichatbot';
+    const VERIFY_WEBHOOK = 'https://n8n.meistericham.com/webhook/verify-captcha';
+    const RECAPTCHA_SITE_KEY = 'YOUR_RECAPTCHA_SITE_KEY';
+
+    // Guards
     const COOLDOWN_MS = 10_000;         // 10s between sends
     const FAILSAFE_UNLOCK_MS = 25_000;  // auto-unlock if no assistant msg
-    const IDLE_RESET_MIN = 3;           // auto-clear session lock after 3 mins idle
+    const IDLE_RESET_MIN = 3;           // unlock after 3 min idle
 
-    // ----- Helpers -----
+    // Session storage keys
+    const SESSION_KEY = 'sam_session_locked';
+    const LAST_ACTIVITY = 'sam_last_activity';
+
+    // ======= HELPERS =======
     const $ = (sel, root=document) => root.querySelector(sel);
     const show = el => el && el.classList.add('show');
     const hide = el => el && el.classList.remove('show');
 
-    // Add a grey system message inside the chat
     function injectSystemMessage(text) {
       const messages = $('#n8n-chat .messages');
       if (!messages) return;
@@ -185,7 +234,6 @@
       messages.scrollTop = messages.scrollHeight;
     }
 
-    // Hide welcome note once first real message appears
     function installWelcomeAutoHide() {
       const note = $('#welcomeNote');
       const host = $('#n8n-chat');
@@ -197,14 +245,11 @@
       mo.observe(host, { childList: true, subtree: true });
     }
 
-    // Session lock: one active session per device
-    const SESSION_KEY = 'sam_session_locked';
-    const LAST_ACTIVITY = 'sam_last_activity';
     function isLocked() {
-      const lock = localStorage.getItem(SESSION_KEY);
       const last = Number(localStorage.getItem(LAST_ACTIVITY) || 0);
-      const idleTooLong = Date.now() - last > IDLE_RESET_MIN * 60_000;
-      if (idleTooLong) { localStorage.removeItem(SESSION_KEY); }
+      if (Date.now() - last > IDLE_RESET_MIN * 60_000) {
+        localStorage.removeItem(SESSION_KEY);
+      }
       return !!localStorage.getItem(SESSION_KEY);
     }
     function lockSession() {
@@ -218,7 +263,6 @@
       localStorage.removeItem(SESSION_KEY);
     }
 
-    // Cooldown & duplicate guards
     let lastSendAt = 0;
     let lastText = '';
     let inFlight = false;
@@ -231,11 +275,11 @@
       const rem = cooldownRemaining();
       if (rem > 0 || inFlight) {
         e?.preventDefault();
-        // Banner + system line
-        $('#cooldownBanner').textContent = `⏳ Sila tunggu ${Math.ceil(rem/1000)} saat sebelum hantar soalan baharu.`;
-        show($('#cooldownBanner'));
-        setTimeout(() => hide($('#cooldownBanner')), 1200);
-        injectSystemMessage(`⏳ Sila tunggu ${Math.ceil(rem/1000)} saat sebelum hantar soalan baru.`);
+        const banner = $('#cooldownBanner');
+        banner.textContent = `⏳ Sila tunggu ${Math.ceil(rem/1000)} saat sebelum hantar soalan baharu.`;
+        show(banner);
+        setTimeout(() => hide(banner), 1200);
+        injectSystemMessage(`⏳ Sila tunggu ${Math.ceil(rem/1000)}s sebelum soalan berikutnya.`);
         return true;
       }
       return false;
@@ -249,7 +293,6 @@
       const sendBtn = () => root.querySelector('.chat-input button');
       const disable = on => { box() && (box().disabled = on); sendBtn() && (sendBtn().disabled = on); };
 
-      // Unlock when any assistant message shows up (heuristic)
       const mo = new MutationObserver(() => {
         if (!inFlight) return;
         const botMsg = root.querySelector('.message.assistant, .assistant, .bot');
@@ -257,31 +300,24 @@
       });
       mo.observe(root, { childList: true, subtree: true });
 
-      // Safety unlock in case stream stalls
       const safety = () => setTimeout(() => { inFlight = false; disable(false); }, FAILSAFE_UNLOCK_MS);
 
-      // Intercept Enter in the input
+      // ENTER
       root.addEventListener('keydown', (e) => {
         if (e.key !== 'Enter') return;
         const b = box();
         const val = (b?.value || '').trim();
         if (!val) { e.preventDefault(); return; }
 
-        // One session per device
-        if (isLocked() === false) { lockSession(); }
-        else { touchSession(); }
-
-        // Cooldown / inflight
+        if (!isLocked()) { lockSession(); } else { touchSession(); }
         if (blockIfCooling(e)) return;
 
-        // Duplicate guard (same text within cooldown window)
         if (val === lastText && Date.now() - lastSendAt < COOLDOWN_MS) {
           e.preventDefault();
-          injectSystemMessage('⚠️ Mesej yang sama telah dihantar. Cuba ubah soalan anda.');
+          injectSystemMessage('⚠️ Mesej sama telah dihantar. Cuba ubah soalan.');
           return;
         }
 
-        // Commit send: mark in-flight & timestamp
         inFlight = true;
         lastSendAt = Date.now();
         lastText = val;
@@ -289,7 +325,7 @@
         safety();
       }, true);
 
-      // Also intercept mouse click on send button
+      // CLICK
       root.addEventListener('click', (e) => {
         const t = e.target;
         if (!(t instanceof HTMLElement)) return;
@@ -299,14 +335,12 @@
         const val = (b?.value || '').trim();
         if (!val) { e.preventDefault(); return; }
 
-        if (isLocked() === false) { lockSession(); }
-        else { touchSession(); }
-
+        if (!isLocked()) { lockSession(); } else { touchSession(); }
         if (blockIfCooling(e)) return;
 
         if (val === lastText && Date.now() - lastSendAt < COOLDOWN_MS) {
           e.preventDefault();
-          injectSystemMessage('⚠️ Mesej yang sama telah dihantar. Cuba ubah soalan anda.');
+          injectSystemMessage('⚠️ Mesej sama telah dihantar. Cuba ubah soalan.');
           return;
         }
 
@@ -317,7 +351,7 @@
         setTimeout(() => { inFlight = false; disable(false); }, FAILSAFE_UNLOCK_MS);
       }, true);
 
-      // Idle unlock (3 minutes)
+      // Idle unlock
       setInterval(() => {
         const last = Number(localStorage.getItem(LAST_ACTIVITY) || 0);
         if (Date.now() - last > IDLE_RESET_MIN * 60_000) {
@@ -327,36 +361,88 @@
       }, 30_000);
     }
 
-    // ----- Initialize chat -----
-    document.addEventListener('DOMContentLoaded', async () => {
-      try {
-        await createChat({
-          webhookUrl: WEBHOOK_URL,
-          target: '#n8n-chat',
-          mode: 'embedded',
-          showWelcomeScreen: false,
-          enableStreaming: true,
-          loadPreviousSession: true,
-          initialMessages: [
-            'Selamat datang! 👋 Saya Sam Izrin.',
-            'Tanya apa-apa pasal Kuching & Sarawak: tempat menarik, makanan, waktu operasi, pengangkutan.',
-            'Contoh: “Bila show Darul Hana fountain?”, “Macam mana pergi Bako?”, “Di mana beli kek lapis?”'
-          ],
-          i18n: {
-            en: { inputPlaceholder: 'Tanya soalan di sini… contoh: “Waktu fountain Darul Hana”' }
-          }
+    function installLinkifier() {
+      const container = document.getElementById('n8n-chat');
+      if (!container) return;
+      const urlRegex = /\b(https?:\/\/[^\s<)]+)\b/gi;
+      const enhance = (el) => {
+        if (!el || el.__linkified) return;
+        el.innerHTML = el.innerHTML.replace(urlRegex, (m) => {
+          const safe = m.replace(/"/g, '&quot;');
+          return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
         });
-
-        installGuards();
-        installWelcomeAutoHide();
-
-      } catch (err) {
-        console.error('Failed to initialize chat:', err);
-        const note = document.getElementById('welcomeNote');
-        if (note) {
-          note.innerHTML = '<strong>Ralat memuatkan chat.</strong> Sila muat semula halaman.';
+        el.__linkified = true;
+      };
+      const mo = new MutationObserver((mutations) => {
+        for (const m of mutations) {
+          for (const n of m.addedNodes) {
+            if (!(n instanceof HTMLElement)) continue;
+            if (n.matches('.message-text, .bubble, .markdown-body, .chat-message')) enhance(n);
+            n.querySelectorAll?.('.message-text, .bubble, .markdown-body, .chat-message').forEach(enhance);
+          }
         }
+      });
+      mo.observe(container, { childList: true, subtree: true });
+    }
+
+    async function verifyCaptcha(token) {
+      try {
+        const res = await fetch(VERIFY_WEBHOOK, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, action: 'start_chat' })
+        });
+        const data = await res.json().catch(() => ({}));
+        return !!data.success;
+      } catch (e) {
+        console.error('Captcha verify error', e);
+        return false;
       }
+    }
+
+    async function startChat() {
+      // run reCAPTCHA
+      const token = await grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'start_chat' });
+      const ok = await verifyCaptcha(token);
+      if (!ok) {
+        alert('reCAPTCHA verification failed. Please try again.');
+        return;
+      }
+      // mount chat
+      await createChat({
+        webhookUrl: CHAT_WEBHOOK,
+        target: '#n8n-chat',
+        mode: 'embedded',
+        showWelcomeScreen: false,
+        enableStreaming: true,
+        loadPreviousSession: true,
+        initialMessages: [
+          'Selamat datang! 👋 Saya Sam Izrin.',
+          'Tanya apa-apa pasal Kuching & Sarawak: tempat menarik, makanan, waktu operasi, pengangkutan.',
+          'Contoh: “Bila show Darul Hana fountain?”, “Macam mana pergi Bako?”, “Di mana beli kek lapis?”'
+        ],
+        i18n: {
+          en: { inputPlaceholder: 'Tanya soalan di sini… contoh: “Waktu fountain Darul Hana”' }
+        }
+      });
+      // hide gate, set up guards
+      $('#gate').classList.add('hidden');
+      installGuards();
+      installWelcomeAutoHide();
+    }
+
+    // Wire the Start button
+    document.addEventListener('DOMContentLoaded', () => {
+      // Ensure recaptcha is ready before enabling button
+      const btn = $('#btnStart');
+      btn.addEventListener('click', async () => {
+        try {
+          await grecaptcha.ready(async () => { await startChat(); });
+        } catch (e) {
+          alert('Unable to start chat right now. Please try again.');
+          console.error(e);
+        }
+      });
     });
   </script>
 </body>
