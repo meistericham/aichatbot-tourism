@@ -4,11 +4,13 @@
   <meta charset="UTF-8" />
   <title>Sarawak AI Tourism Assistant</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.css" />
-  <!-- reCAPTCHA v3: use your REAL site key -->
+  <!-- n8n chat styles -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" />
+  <!-- ===== Section: reCAPTCHA loader (use your REAL site key in the query) ===== -->
   <script src="https://www.google.com/recaptcha/api.js?render=6Lf0xsErAAAAAM7vVvRIqb5JI_2Kf0p10aGzJ88W"></script>
 
   <style>
+    /* ===== Section: Base Layout / UI (unchanged) ===== */
     html, body { height: 100%; margin: 0; }
     body {
       display: grid;
@@ -25,46 +27,47 @@
     header h1{font-size:22px;font-weight:800;text-shadow:1px 1px 4px rgba(0,0,0,.7);margin:5px 0}
     header p.sub{font-size:13px;opacity:.9}
 
+    /* Chat card shell */
     #chatCard{
       max-width:1080px;width:min(92%,1080px);margin:24px auto;background:#fff;border-radius:20px;
       box-shadow:0 10px 24px rgba(0,0,0,.18);display:flex;flex-direction:column;height:72vh;min-height:560px;
       overflow:hidden;position:relative
     }
 
-    /* reCAPTCHA gate */
+    /* ===== Section: reCAPTCHA gate (overlay card) ===== */
     #gate{position:absolute;inset:0;z-index:3;display:grid;place-items:center;
       background:linear-gradient(180deg,rgba(255,255,255,.9),rgba(255,255,255,.96))}
     #gate.hidden{display:none}
     .gate-card{width:min(560px,92vw);background:#fff;border:1px solid #e9ecf3;border-radius:16px;
       box-shadow:0 12px 30px rgba(0,0,0,.08);padding:clamp(18px,4vw,26px);text-align:center;color:#111}
     .gate-title{font-size:18px;font-weight:800;margin:0 0 6px}
-    .gate-text{font-size:14px;color: #444;margin:0 0 14px;line-height:1.6}
+    .gate-text{font-size:14px;color:#444;margin:0 0 14px;line-height:1.6}
     .gate-btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:12px 18px;
       font-size:15px;font-weight:700;color:#111;background:#d6ff6b;border:0;border-radius:999px;cursor:pointer;
       box-shadow:0 8px 24px rgba(214,255,107,.25)}
     .gate-btn[disabled]{opacity:.6;cursor:not-allowed}
     .gate-hint{margin-top:10px;font-size:12px;color:#666}
 
-    /* Instruction panel inside card */
+    /* ===== Section: Instruction panel (inside card) ===== */
     #welcomeNote{position:absolute;top:12px;left:12px;right:12px;z-index:2;background:#f6f9ff;border:1px solid #e5edff;
       color:#26324b;padding:14px 16px;border-radius:12px;font-size:14px;line-height:1.5}
     #welcomeNote.hidden{display:none}
 
-    /* n8n host */
+    /* ===== Section: n8n host area ===== */
     #n8n-chat{flex:1;display:flex;flex-direction:column;min-height:0}
     #n8n-chat .messages{flex:1;overflow-y:auto;padding:20px}
 
-    /* show footer & input */
+    /* Keep input visible & styled */
     #n8n-chat .chat-footer{display:flex !important;visibility:visible !important;background:#fff !important;border-top:1px solid #eee !important;padding:12px !important}
     #n8n-chat .chat-input{width:100%;display:flex}
     #n8n-chat .chat-input textarea{flex:1;border:1px solid #ddd !important;border-radius:20px !important;padding:10px 14px !important;font-size:15px;resize:none;min-height:44px;max-height:140px}
     #n8n-chat .chat-input button{margin-left:8px;width:44px;height:44px;border-radius:50%;background:#111 !important;color:#fff !important}
 
-    /* hide n8n header/branding/launcher */
+    /* Hide n8n header/branding/launcher */
     #n8n-chat .chat-header, #n8n-chat [data-testid="powered-by"], #n8n-chat .powered-by,
     .n8n-chat .powered-by, #n8n-chat [data-testid="launcher"], .chat-launcher{display:none !important}
 
-    /* system lines + countdown banner */
+    /* System line + top banner for cooldown */
     #n8n-chat .message.system{text-align:center;font-size:13px;color:#666 !important;font-style:italic;margin:6px 0}
     #cooldownBanner{position:absolute;right:12px;top:12px;z-index:2;background:#111;color:#fff;font-size:12px;
       padding:8px 10px;border-radius:10px;box-shadow:0 6px 16px rgba(0,0,0,.25);display:none}
@@ -72,10 +75,11 @@
 
     footer{background:#111;text-align:center;padding:10px;font-size:13px;color:#aaa;border-top:1px solid #222}
     footer span{color:#f0f0f0;font-weight:500}
-    footer a{color:#fff;text-decoration:underline}
+    footer a{color:#fff; text-decoration:underline}
   </style>
 </head>
 <body>
+  <!-- ===== Section: Header (unchanged) ===== -->
   <header>
     <div class="inner">
       <a href="https://sarawaktourism.com" target="_blank" rel="noopener">
@@ -86,9 +90,12 @@
     </div>
   </header>
 
+  <!-- ===== Section: Chat Card ===== -->
   <section id="chatCard">
+    <!-- Countdown banner -->
     <div id="cooldownBanner" aria-live="polite">⏳ Tunggu 10 saat antara soalan.</div>
 
+    <!-- Instruction note (hides after first real message) -->
     <div id="welcomeNote">
       <strong>Selamat datang! 👋</strong><br>
       Tanyakan apa sahaja tentang Kuching &amp; Sarawak (makanan, tempat, pengangkutan, waktu operasi).<br>
@@ -98,7 +105,7 @@
         <a href="https://forms.gle/yJ3KPyNpUvEoaG9H9" target="_blank" rel="noopener">Kuiz Pelancongan</a>
     </div>
 
-    <!-- reCAPTCHA gate -->
+    <!-- ===== Section: reCAPTCHA gate ===== -->
     <div id="gate" role="dialog" aria-modal="true">
       <div class="gate-card">
         <div class="gate-title">Before we start</div>
@@ -108,60 +115,44 @@
       </div>
     </div>
 
+    <!-- n8n mounts here -->
     <div id="n8n-chat"></div>
   </section>
 
+  <!-- ===== Section: Footer ===== -->
   <footer>
     Concept by <span><a href="https://mohdhisyamudin.com" target="_blank" rel="noopener">Mohd Hisyamudin</a></span> | Powered by <span>AI</span>
   </footer>
 
+  <!-- ===== Section: Scripts (config + logic) ===== -->
   <script type="module">
+    /* ===== Section: Imports / Config ===== */
     import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
 
-    // --- CONFIG ---
-    const RECAPTCHA_SITE_KEY = '6Lf0xsErAAAAAM7vVvRIqb5JI_2Kf0p10aGzJ88W'; // must match script tag
+    // --- BEGINNER EDIT ZONE: change only values on the right ---
+    const RECAPTCHA_SITE_KEY = '6Lf0xsErAAAAAM7vVvRIqb5JI_2Kf0p10aGzJ88W';        // must match the <script> tag key
     const VERIFY_WEBHOOK     = 'https://n8n.meistericham.com/webhook/verify-captcha';
     const CHAT_WEBHOOK       = 'https://n8n.meistericham.com/webhook/aichatbot';
+    // --- END EDIT ZONE ---
 
-    // Guards / session
+    // Guard settings
     const COOLDOWN_MS = 10_000, FAILSAFE_UNLOCK_MS = 25_000, IDLE_RESET_MIN = 3;
     const SESSION_KEY = 'sam_session_locked', LAST_ACTIVITY = 'sam_last_activity';
 
-    const $ = (s,r=document)=>r.querySelector(s);
+    /* ===== Section: Small helpers ===== */
+    const $  = (s,r=document)=>r.querySelector(s);
     const show = el => el && el.classList.add('show');
     const hide = el => el && el.classList.remove('show');
 
-    // --- Helper: wait for chat internals to exist ---
-    function waitForMessages(timeoutMs=6000){
-      return new Promise((resolve) => {
-        const start = performance.now();
-        const tryFind = () => {
-          const area = document.querySelector('#n8n-chat .messages');
-          if (area) return resolve(area);
-          if (performance.now() - start > timeoutMs) return resolve(null);
-          requestAnimationFrame(tryFind);
-        };
-        tryFind();
-      });
-    }
-
-    // Return the created system line element (or null).
-    async function injectSystemMessage(text){
-      let area = document.querySelector('#n8n-chat .messages');
-      if (!area) {
-        // wait briefly for chat to finish mounting
-        area = await waitForMessages(4000);
-      }
-      if (!area) {
-        console.debug('[cooldown] messages area not ready; banner only:', text);
-        return null;
-      }
-      const d = document.createElement('div');
-      d.className = 'message system';
-      d.textContent = text;
-      area.appendChild(d);
-      area.scrollTop = area.scrollHeight;
-      return d;
+    function injectSystemMessage(text){
+      const messages = $('#n8n-chat .messages');
+      if (!messages) return null;
+      const div = document.createElement('div');
+      div.className = 'message system';
+      div.textContent = text;
+      messages.appendChild(div);
+      messages.scrollTop = messages.scrollHeight;
+      return div;
     }
 
     function installWelcomeAutoHide(){
@@ -170,6 +161,7 @@
       mo.observe(host,{childList:true,subtree:true});
     }
 
+    // Simple “one session per device”
     function isLocked(){ const last=Number(localStorage.getItem(LAST_ACTIVITY)||0);
       if(Date.now()-last>IDLE_RESET_MIN*60_000){ localStorage.removeItem(SESSION_KEY); }
       return !!localStorage.getItem(SESSION_KEY);
@@ -178,7 +170,7 @@
     function touchSession(){ localStorage.setItem(LAST_ACTIVITY,String(Date.now())); }
     function unlockSession(){ localStorage.removeItem(SESSION_KEY); }
 
-    // ===== Countdown state =====
+    /* ===== Section: Countdown state & functions (10s timer) ===== */
     let lastSendAt=0,lastText='',inFlight=false;
     let cooldownEndAt = 0;
     let cooldownTimer = null;
@@ -195,42 +187,36 @@
       if (btn) btn.disabled = on;
     }
 
-    async function startCooldown(seconds = 10){
-      if (cooldownTimer) return; // already cooling
+    // 👉 controls the visible countdown + disables input
+    function startCooldown(seconds = 10){
+      if (cooldownTimer) return;            // don’t double-start
       cooldownEndAt = Date.now() + seconds*1000;
       setControlsDisabled(true);
 
-      // Ensure we have a system line to update (if possible)
-      if (!cooldownLine) {
-        cooldownLine = await injectSystemMessage(`⏳ Tunggu ${seconds}s sebelum mesej seterusnya.`);
-      }
-
-      const update = async () => {
+      const update = () => {
         const remainingMs = cooldownRemaining();
         const secs = Math.ceil(remainingMs/1000);
 
-        if (!cooldownLine) {
-          // try again to create a line once messages area exists
-          cooldownLine = await injectSystemMessage(`⏳ Tunggu ${secs}s sebelum mesej seterusnya.`);
-        } else {
-          cooldownLine.textContent = `⏳ Tunggu ${secs}s sebelum mesej seterusnya.`;
-        }
+        // Update system line (inside chat)
+        if (!cooldownLine) cooldownLine = injectSystemMessage(`⏳ Tunggu ${secs}s sebelum mesej seterusnya.`);
+        else cooldownLine.textContent = `⏳ Tunggu ${secs}s sebelum mesej seterusnya.`;
 
+        // Update small banner at top-right
         const b=$('#cooldownBanner');
-        if (b) {
-          b.textContent = `⏳ Sila tunggu ${secs} saat sebelum hantar soalan baharu.`;
-          show(b);
-        }
+        b.textContent = `⏳ Sila tunggu ${secs} saat sebelum hantar soalan baharu.`;
+        show(b);
 
         if (remainingMs <= 0){
-          clearInterval(cooldownTimer); cooldownTimer=null; cooldownLine=null;
-          if (b) hide(b);
+          clearInterval(cooldownTimer);
+          cooldownTimer=null;
+          cooldownLine=null;
+          hide(b);
           setControlsDisabled(false);
-          await injectSystemMessage('✅ Anda boleh hantar mesej baru sekarang.');
+          injectSystemMessage('✅ Anda boleh hantar mesej baru sekarang.');
         }
       };
 
-      update();
+      update();                              // show immediately
       cooldownTimer = setInterval(update, 1000);
     }
 
@@ -240,24 +226,35 @@
         e?.preventDefault();
         const secs = Math.ceil(rem/1000) || Math.ceil(COOLDOWN_MS/1000);
         const b=$('#cooldownBanner');
-        if (b) {
-          b.textContent=`⏳ Sila tunggu ${secs} saat sebelum hantar soalan baharu.`;
-          show(b); setTimeout(()=>hide(b),1200);
-        }
-        // Seed a line if none exists yet
-        if (!cooldownTimer && !cooldownLine) { injectSystemMessage(`⏳ Tunggu ${secs}s sebelum mesej seterusnya.`); }
+        b.textContent=`⏳ Sila tunggu ${secs} saat sebelum hantar soalan baharu.`;
+        show(b); setTimeout(()=>hide(b),1200);
+        if (!cooldownTimer) cooldownLine = injectSystemMessage(`⏳ Tunggu ${secs}s sebelum mesej seterusnya.`);
         return true;
       }
       return false;
+    }
+
+    /* ===== Section: Attach guards AFTER chat input exists ===== */
+    function waitForInput(timeout=6000){
+      return new Promise((resolve)=>{
+        const start = Date.now();
+        const tick = () => {
+          const input = document.querySelector('#n8n-chat .chat-input textarea, #n8n-chat .chat-input input[type="text"]');
+          if (input) return resolve(true);
+          if (Date.now() - start > timeout) return resolve(false);
+          requestAnimationFrame(tick);
+        };
+        tick();
+      });
     }
 
     function installGuards(){
       const root=document.getElementById('n8n-chat'); if(!root) return;
       const box=()=>root.querySelector('textarea, input[type="text"]');
       const sendBtn=()=>root.querySelector('.chat-input button');
-      const disable=setControlsDisabled;
+      const disable=on=>setControlsDisabled(on);
 
-      // Unlock on assistant reply — but DO NOT override active cooldown
+      // Unlock on assistant reply (don’t override an active cooldown)
       const mo=new MutationObserver(()=>{ if(!inFlight) return;
         const bot=root.querySelector('.message.assistant,.assistant,.bot');
         if(bot){ inFlight=false; if (!cooldownTimer) disable(false); touchSession(); }
@@ -266,18 +263,19 @@
 
       const safety=()=>setTimeout(()=>{ inFlight=false; if (!cooldownTimer) disable(false); }, FAILSAFE_UNLOCK_MS);
 
-      // ENTER
-      root.addEventListener('keydown', (e)=>{ if(e.key!=='Enter') return;
+      // Enter key
+      root.addEventListener('keydown',(e)=>{ if(e.key!=='Enter') return;
         const b=box(); const val=(b?.value||'').trim(); if(!val){ e.preventDefault(); return; }
         if(!isLocked()) lockSession(); else touchSession();
         if(blockIfCooling(e)) return;
         if(val===lastText && Date.now()-lastSendAt<COOLDOWN_MS){ e.preventDefault(); injectSystemMessage('⚠️ Mesej sama telah dihantar. Cuba ubah soalan.'); return; }
         inFlight=true; lastSendAt=Date.now(); lastText=val; disable(true); safety();
-        startCooldown(10); // <-- start visible countdown now
+        // Start 10s countdown visibly
+        startCooldown(10);
       }, true);
 
-      // CLICK
-      root.addEventListener('click', (e)=>{ const t=e.target;
+      // Click send button
+      root.addEventListener('click',(e)=>{ const t=e.target;
         if(!(t instanceof HTMLElement) || !t.closest('.chat-input button')) return;
         const b=box(); const val=(b?.value||'').trim(); if(!val){ e.preventDefault(); return; }
         if(!isLocked()) lockSession(); else touchSession();
@@ -285,15 +283,16 @@
         if(val===lastText && Date.now()-lastSendAt<COOLDOWN_MS){ e.preventDefault(); injectSystemMessage('⚠️ Mesej sama telah dihantar. Cuba ubah soalan.'); return; }
         inFlight=true; lastSendAt=Date.now(); lastText=val; disable(true);
         setTimeout(()=>{ inFlight=false; if (!cooldownTimer) disable(false); }, FAILSAFE_UNLOCK_MS);
-        startCooldown(10); // <-- start visible countdown now
+        startCooldown(10);
       }, true);
 
-      // Idle unlock
+      // Idle unlock after 3 minutes
       setInterval(()=>{ const last=Number(localStorage.getItem(LAST_ACTIVITY)||0);
         if(Date.now()-last>IDLE_RESET_MIN*60_000){ unlockSession(); injectSystemMessage('ℹ️ Sesi dinyahaktif selepas tidak aktif. Anda boleh sambung bersembang.'); }
       }, 30_000);
     }
 
+    /* ===== Section: Captcha verification + chat mount ===== */
     async function verifyCaptcha(token){
       try{
         const res=await fetch(VERIFY_WEBHOOK,{
@@ -318,11 +317,21 @@
         ],
         i18n: { en: { inputPlaceholder: 'Tanya soalan di sini… contoh: “Waktu fountain Darul Hana”' } }
       });
+
+      // Hide the gate
       $('#gate').classList.add('hidden');
-      installGuards();
-      installWelcomeAutoHide();
+
+      // ✅ Wait for n8n to render the input, THEN attach guards so countdown works
+      const ok = await waitForInput();
+      if (ok) {
+        installGuards();
+        installWelcomeAutoHide();
+      } else {
+        console.error('Chat input not found; guards not installed');
+      }
     }
 
+    // Tiny wrapper so grecaptcha.ready works reliably
     const grecaptchaReady = () =>
       new Promise((resolve)=>{ try{ window.grecaptcha.ready(resolve); } catch{ resolve(); } });
 
@@ -343,6 +352,7 @@
       }
     }
 
+    /* ===== Section: Wire the Start button ===== */
     document.addEventListener('DOMContentLoaded', ()=>{
       $('#btnStart').addEventListener('click', handleStart);
     });
