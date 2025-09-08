@@ -5,8 +5,7 @@
   <title>Sarawak AI Tourism Assistant</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" />
-
-  <!-- 1) Put your REAL site key here (v3) -->
+  <!-- reCAPTCHA v3: keep your REAL site key here -->
   <script src="https://www.google.com/recaptcha/api.js?render=6Lf0xsErAAAAAM7vVvRIqb5JI_2Kf0p10aGzJ88W"></script>
 
   <style>
@@ -14,9 +13,7 @@
     body {
       display: grid;
       grid-template-rows: auto 1fr auto;
-      background: #111;
-      color: #fff;
-      font-family: "Segoe UI", Arial, sans-serif;
+      background: #111; color: #fff; font-family: "Segoe UI", Arial, sans-serif;
       min-height: 100vh; overflow-x: hidden;
     }
     header { position:relative; text-align:center; padding:20px 15px;
@@ -44,6 +41,7 @@
     .gate-btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:12px 18px;
       font-size:15px;font-weight:700;color:#111;background:#d6ff6b;border:0;border-radius:999px;cursor:pointer;
       box-shadow:0 8px 24px rgba(214,255,107,.25)}
+    .gate-btn[disabled]{opacity:.6;cursor:not-allowed}
     .gate-hint{margin-top:10px;font-size:12px;color:#666}
 
     #welcomeNote{position:absolute;top:12px;left:12px;right:12px;z-index:2;background:#f6f9ff;border:1px solid #e5edff;
@@ -110,8 +108,8 @@
   <script type="module">
     import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
 
-    // --- CONFIG (update these) ---
-    const RECAPTCHA_SITE_KEY = '6Lf0xsErAAAAAM7vVvRIqb5JI_2Kf0p10aGzJ88W'; // SAME as in the script tag
+    // --- CONFIG ---
+    const RECAPTCHA_SITE_KEY = '6Lf0xsErAAAAAM7vVvRIqb5JI_2Kf0p10aGzJ88W'; // must match the script tag
     const VERIFY_WEBHOOK     = 'https://n8n.meistericham.com/webhook/verify-captcha';
     const CHAT_WEBHOOK       = 'https://n8n.meistericham.com/webhook/aichatbot';
 
@@ -119,56 +117,90 @@
     const COOLDOWN_MS = 10_000, FAILSAFE_UNLOCK_MS = 25_000, IDLE_RESET_MIN = 3;
     const SESSION_KEY = 'sam_session_locked', LAST_ACTIVITY = 'sam_last_activity';
 
-    const $ = (s,r=document)=>r.querySelector(s); const show=el=>el&&el.classList.add('show'); const hide=el=>el&&el.classList.remove('show');
+    const $ = (s,r=document)=>r.querySelector(s);
+    const show = el => el && el.classList.add('show');
+    const hide = el => el && el.classList.remove('show');
 
-    function injectSystemMessage(t){const m=$('#n8n-chat .messages');if(!m)return;const d=document.createElement('div');d.className='message system';d.textContent=t;m.appendChild(d);m.scrollTop=m.scrollHeight;}
+    function injectSystemMessage(t){
+      const m=$('#n8n-chat .messages'); if(!m) return;
+      const d=document.createElement('div'); d.className='message system'; d.textContent=t;
+      m.appendChild(d); m.scrollTop=m.scrollHeight;
+    }
 
-    function installWelcomeAutoHide(){const note=$('#welcomeNote'),host=$('#n8n-chat');if(!note||!host)return;const mo=new MutationObserver(()=>{if(host.querySelector('.message')){note.classList.add('hidden');mo.disconnect();}});mo.observe(host,{childList:true,subtree:true});}
+    function installWelcomeAutoHide(){
+      const note=$('#welcomeNote'), host=$('#n8n-chat'); if(!note||!host) return;
+      const mo=new MutationObserver(()=>{ if(host.querySelector('.message')){ note.classList.add('hidden'); mo.disconnect(); }});
+      mo.observe(host,{childList:true,subtree:true});
+    }
 
-    function isLocked(){const last=Number(localStorage.getItem(LAST_ACTIVITY)||0);if(Date.now()-last>IDLE_RESET_MIN*60_000){localStorage.removeItem(SESSION_KEY);}return !!localStorage.getItem(SESSION_KEY);}
-    function lockSession(){localStorage.setItem(SESSION_KEY,'1');localStorage.setItem(LAST_ACTIVITY,String(Date.now()));}
-    function touchSession(){localStorage.setItem(LAST_ACTIVITY,String(Date.now()));}
-    function unlockSession(){localStorage.removeItem(SESSION_KEY);}
+    function isLocked(){ const last=Number(localStorage.getItem(LAST_ACTIVITY)||0);
+      if(Date.now()-last>IDLE_RESET_MIN*60_000){ localStorage.removeItem(SESSION_KEY); }
+      return !!localStorage.getItem(SESSION_KEY);
+    }
+    function lockSession(){ localStorage.setItem(SESSION_KEY,'1'); localStorage.setItem(LAST_ACTIVITY,String(Date.now())); }
+    function touchSession(){ localStorage.setItem(LAST_ACTIVITY,String(Date.now())); }
+    function unlockSession(){ localStorage.removeItem(SESSION_KEY); }
 
     let lastSendAt=0,lastText='',inFlight=false;
     const cooldownRemaining=()=>Math.max(0,COOLDOWN_MS-(Date.now()-lastSendAt));
-    function blockIfCooling(e){const rem=cooldownRemaining();if(rem>0||inFlight){e?.preventDefault();const b=$('#cooldownBanner');b.textContent=`⏳ Sila tunggu ${Math.ceil(rem/1000)} saat sebelum hantar soalan baharu.`;show(b);setTimeout(()=>hide(b),1200);injectSystemMessage(`⏳ Sila tunggu ${Math.ceil(rem/1000)}s sebelum soalan berikutnya.`);return true;}return false;}
+    function blockIfCooling(e){
+      const rem=cooldownRemaining();
+      if(rem>0 || inFlight){
+        e?.preventDefault();
+        const b=$('#cooldownBanner');
+        b.textContent=`⏳ Sila tunggu ${Math.ceil(rem/1000)} saat sebelum hantar soalan baharu.`;
+        show(b); setTimeout(()=>hide(b),1200);
+        injectSystemMessage(`⏳ Sila tunggu ${Math.ceil(rem/1000)}s sebelum soalan berikutnya.`);
+        return true;
+      }
+      return false;
+    }
 
     function installGuards(){
       const root=document.getElementById('n8n-chat'); if(!root) return;
       const box=()=>root.querySelector('textarea, input[type="text"]');
       const sendBtn=()=>root.querySelector('.chat-input button');
-      const disable=on=>{box()&&(box().disabled=on);sendBtn()&&(sendBtn().disabled=on);};
+      const disable=on=>{ box()&&(box().disabled=on); sendBtn()&&(sendBtn().disabled=on); };
 
-      const mo=new MutationObserver(()=>{if(!inFlight)return;const bot=root.querySelector('.message.assistant,.assistant,.bot');if(bot){inFlight=false;disable(false);touchSession();}});
+      const mo=new MutationObserver(()=>{ if(!inFlight) return;
+        const bot=root.querySelector('.message.assistant,.assistant,.bot');
+        if(bot){ inFlight=false; disable(false); touchSession(); }
+      });
       mo.observe(root,{childList:true,subtree:true});
 
-      const safety=()=>setTimeout(()=>{inFlight=false;disable(false);},FAILSAFE_UNLOCK_MS);
+      const safety=()=>setTimeout(()=>{ inFlight=false; disable(false); }, FAILSAFE_UNLOCK_MS);
 
       root.addEventListener('keydown',(e)=>{ if(e.key!=='Enter') return;
-        const b=box(); const val=(b?.value||'').trim(); if(!val){e.preventDefault();return;}
+        const b=box(); const val=(b?.value||'').trim(); if(!val){ e.preventDefault(); return; }
         if(!isLocked()) lockSession(); else touchSession();
         if(blockIfCooling(e)) return;
-        if(val===lastText && Date.now()-lastSendAt<COOLDOWN_MS){e.preventDefault();injectSystemMessage('⚠️ Mesej sama telah dihantar. Cuba ubah soalan.');return;}
+        if(val===lastText && Date.now()-lastSendAt<COOLDOWN_MS){ e.preventDefault(); injectSystemMessage('⚠️ Mesej sama telah dihantar. Cuba ubah soalan.'); return; }
         inFlight=true; lastSendAt=Date.now(); lastText=val; disable(true); safety();
-      },true);
+      }, true);
 
-      root.addEventListener('click',(e)=>{const t=e.target; if(!(t instanceof HTMLElement) || !t.closest('.chat-input button')) return;
-        const b=box(); const val=(b?.value||'').trim(); if(!val){e.preventDefault();return;}
+      root.addEventListener('click',(e)=>{ const t=e.target;
+        if(!(t instanceof HTMLElement) || !t.closest('.chat-input button')) return;
+        const b=box(); const val=(b?.value||'').trim(); if(!val){ e.preventDefault(); return; }
         if(!isLocked()) lockSession(); else touchSession();
         if(blockIfCooling(e)) return;
-        if(val===lastText && Date.now()-lastSendAt<COOLDOWN_MS){e.preventDefault();injectSystemMessage('⚠️ Mesej sama telah dihantar. Cuba ubah soalan.');return;}
-        inFlight=true; lastSendAt=Date.now(); lastText=val; disable(true); setTimeout(()=>{inFlight=false;disable(false);},FAILSAFE_UNLOCK_MS);
-      },true);
+        if(val===lastText && Date.now()-lastSendAt<COOLDOWN_MS){ e.preventDefault(); injectSystemMessage('⚠️ Mesej sama telah dihantar. Cuba ubah soalan.'); return; }
+        inFlight=true; lastSendAt=Date.now(); lastText=val; disable(true);
+        setTimeout(()=>{ inFlight=false; disable(false); }, FAILSAFE_UNLOCK_MS);
+      }, true);
 
-      setInterval(()=>{const last=Number(localStorage.getItem(LAST_ACTIVITY)||0); if(Date.now()-last>IDLE_RESET_MIN*60_000){unlockSession();injectSystemMessage('ℹ️ Sesi dinyahaktif selepas tidak aktif. Anda boleh sambung bersembang.');}},30_000);
+      setInterval(()=>{ const last=Number(localStorage.getItem(LAST_ACTIVITY)||0);
+        if(Date.now()-last>IDLE_RESET_MIN*60_000){ unlockSession(); injectSystemMessage('ℹ️ Sesi dinyahaktif selepas tidak aktif. Anda boleh sambung bersembang.'); }
+      }, 30_000);
     }
 
     async function verifyCaptcha(token){
       try{
-        const res=await fetch(VERIFY_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,action:'start_chat'})});
+        const res=await fetch(VERIFY_WEBHOOK,{
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({ token, action:'start_chat' })
+        });
         const data=await res.json().catch(()=>({})); return !!data.success;
-      }catch(err){console.error('Captcha verify error',err); return false;}
+      }catch(err){ console.error('Captcha verify error',err); return false; }
     }
 
     async function openChat(){
@@ -191,28 +223,39 @@
       installWelcomeAutoHide();
     }
 
+    // ✅ FIXED: use a Promise wrapper for grecaptcha.ready
+    function grecaptchaReady(){
+      return new Promise((resolve) => {
+        try { window.grecaptcha.ready(resolve); }
+        catch(e){ resolve(); } // in case the object is already ready
+      });
+    }
+
     async function handleStart(){
-      // 2) Ensure library is ready, then execute
-      await grecaptcha.ready();
-      console.log('[recaptcha] ready');
+      const btn = $('#btnStart');
+      btn.disabled = true;
 
-      const token = await grecaptcha.execute(RECAPTCHA_SITE_KEY,{action:'start_chat'});
-      if(!token){ alert('reCAPTCHA gagal. Cuba semula.'); console.warn('[recaptcha] empty token'); return; }
+      try {
+        // Wait until the API is ready (correct usage)
+        await grecaptchaReady();
 
-      const ok = await verifyCaptcha(token);
-      console.log('[recaptcha] verify result:', ok);
-      if(!ok){ alert('Verifikasi reCAPTCHA gagal. Sila cuba lagi.'); return; }
+        // Execute with your site key (use the constant)
+        const token = await grecaptcha.execute(RECAPTCHA_SITE_KEY, { action:'start_chat' });
+        if(!token){ alert('reCAPTCHA gagal. Cuba semula.'); return; }
 
-      await openChat();
+        const ok = await verifyCaptcha(token);
+        if(!ok){ alert('Verifikasi reCAPTCHA gagal. Sila cuba lagi.'); btn.disabled=false; return; }
+
+        await openChat();
+      } catch (err) {
+        console.error('Start error', err);
+        alert('Tidak dapat memulakan chat sekarang. Cuba lagi.');
+        btn.disabled = false;
+      }
     }
 
     document.addEventListener('DOMContentLoaded', ()=>{
-      $('#btnStart').addEventListener('click', ()=>{
-        handleStart().catch(err=>{
-          console.error('Start error', err);
-          alert('Tidak dapat memulakan chat sekarang. Cuba lagi.');
-        });
-      });
+      $('#btnStart').addEventListener('click', handleStart);
     });
   </script>
 </body>
