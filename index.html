@@ -5,7 +5,8 @@
   <title>Sarawak AI Tourism Assistant</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" />
-  <!-- reCAPTCHA v3 -->
+
+  <!-- 1) Put your REAL site key here (v3) -->
   <script src="https://www.google.com/recaptcha/api.js?render=6Lf0xsErAAAAAM7vVvRIqb5JI_2Kf0p10aGzJ88W"></script>
 
   <style>
@@ -16,147 +17,57 @@
       background: #111;
       color: #fff;
       font-family: "Segoe UI", Arial, sans-serif;
-      min-height: 100vh;
-      overflow-x: hidden;
+      min-height: 100vh; overflow-x: hidden;
+    }
+    header { position:relative; text-align:center; padding:20px 15px;
+      background:url("https://i.ibb.co/RGVs3mQn/DUN-AI-revised.png") no-repeat center/cover; color:#fff; }
+    header::before{content:"";position:absolute;inset:0;background:rgba(0,0,0,.55)}
+    header .inner{position:relative;z-index:1;max-width:1080px;margin:0 auto}
+    header img{max-width:180px;margin-bottom:6px}
+    @media (max-width:600px){header img{max-width:150px}}
+    header h1{font-size:22px;font-weight:800;text-shadow:1px 1px 4px rgba(0,0,0,.7);margin:5px 0}
+    header p.sub{font-size:13px;opacity:.9}
+
+    #chatCard{
+      max-width:1080px;width:min(92%,1080px);margin:24px auto;background:#fff;border-radius:20px;
+      box-shadow:0 10px 24px rgba(0,0,0,.18);display:flex;flex-direction:column;height:72vh;min-height:560px;
+      overflow:hidden;position:relative
     }
 
-    /* Header */
-    header {
-      position: relative;
-      text-align: center;
-      padding: 20px 15px;
-      background: url("https://i.ibb.co/RGVs3mQn/DUN-AI-revised.png") no-repeat center/cover;
-      color: #fff;
-    }
-    header::before { content:""; position:absolute; inset:0; background:rgba(0,0,0,.55); }
-    header .inner { position:relative; z-index:1; max-width:1080px; margin:0 auto; }
-    header img { max-width:180px; margin-bottom:6px; }
-    @media (max-width:600px){ header img{ max-width:150px; } }
-    header h1 { font-size:22px; font-weight:800; text-shadow:1px 1px 4px rgba(0,0,0,.7); margin:5px 0; }
-    header p.sub { font-size:13px; opacity:.9; }
+    #gate{position:absolute;inset:0;z-index:3;display:grid;place-items:center;
+      background:linear-gradient(180deg,rgba(255,255,255,.9),rgba(255,255,255,.96))}
+    #gate.hidden{display:none}
+    .gate-card{width:min(560px,92vw);background:#fff;border:1px solid #e9ecf3;border-radius:16px;
+      box-shadow:0 12px 30px rgba(0,0,0,.08);padding:clamp(18px,4vw,26px);text-align:center;color:#111}
+    .gate-title{font-size:18px;font-weight:800;margin:0 0 6px}
+    .gate-text{font-size:14px;color:#444;margin:0 0 14px;line-height:1.6}
+    .gate-btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:12px 18px;
+      font-size:15px;font-weight:700;color:#111;background:#d6ff6b;border:0;border-radius:999px;cursor:pointer;
+      box-shadow:0 8px 24px rgba(214,255,107,.25)}
+    .gate-hint{margin-top:10px;font-size:12px;color:#666}
 
-    /* Chat card */
-    #chatCard {
-      max-width: 1080px;
-      width: min(92%, 1080px);
-      margin: 24px auto;
-      background: #fff;
-      border-radius: 20px;
-      box-shadow: 0 10px 24px rgba(0,0,0,.18);
-      display: flex;
-      flex-direction: column;
-      height: 72vh;
-      min-height: 560px;
-      overflow: hidden;
-      position: relative;
-    }
+    #welcomeNote{position:absolute;top:12px;left:12px;right:12px;z-index:2;background:#f6f9ff;border:1px solid #e5edff;
+      color:#26324b;padding:14px 16px;border-radius:12px;font-size:14px;line-height:1.5}
+    #welcomeNote.hidden{display:none}
 
-    /* Gate overlay (reCAPTCHA + Start) */
-    #gate {
-      position: absolute; inset: 0; z-index: 3;
-      display: grid; place-items: center;
-      background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,.96));
-    }
-    #gate.hidden { display: none; }
-    .gate-card {
-      width: min(560px, 92vw);
-      background: #fff;
-      border: 1px solid #e9ecf3;
-      border-radius: 16px;
-      box-shadow: 0 12px 30px rgba(0,0,0,.08);
-      padding: clamp(18px, 4vw, 26px);
-      text-align: center;
-      color: #111;
-    }
-    .gate-title { font-size: 18px; font-weight: 800; margin: 0 0 6px; }
-    .gate-text { font-size: 14px; color: #444; margin: 0 0 14px; line-height: 1.6; }
-    .gate-btn {
-      display: inline-flex; align-items: center; justify-content: center;
-      gap: 10px; padding: 12px 18px; font-size: 15px; font-weight: 700;
-      color: #111; background: #d6ff6b; border: 0; border-radius: 999px; cursor: pointer;
-      box-shadow: 0 8px 24px rgba(214,255,107,.25);
-    }
-    .gate-hint { margin-top: 10px; font-size: 12px; color: #666; }
+    #n8n-chat{flex:1;display:flex;flex-direction:column;min-height:0}
+    #n8n-chat .messages{flex:1;overflow-y:auto;padding:20px}
+    #n8n-chat .chat-footer{display:flex !important;visibility:visible !important;background:#fff !important;border-top:1px solid #eee !important;padding:12px !important}
+    #n8n-chat .chat-input{width:100%;display:flex}
+    #n8n-chat .chat-input textarea{flex:1;border:1px solid #ddd !important;border-radius:20px !important;padding:10px 14px !important;font-size:15px;resize:none;min-height:44px;max-height:140px}
+    #n8n-chat .chat-input button{margin-left:8px;width:44px;height:44px;border-radius:50%;background:#111 !important;color:#fff !important}
 
-    /* Instruction panel (inside white card) */
-    #welcomeNote {
-      position: absolute;
-      top: 12px; left: 12px; right: 12px;
-      z-index: 2;
-      background: #f6f9ff;
-      border: 1px solid #e5edff;
-      color: #26324b;
-      padding: 14px 16px;
-      border-radius: 12px;
-      font-size: 14px;
-      line-height: 1.5;
-    }
-    #welcomeNote.hidden { display:none; }
+    #n8n-chat .chat-header, #n8n-chat [data-testid="powered-by"], #n8n-chat .powered-by,
+    .n8n-chat .powered-by, #n8n-chat [data-testid="launcher"], .chat-launcher{display:none !important}
 
-    /* Chat host */
-    #n8n-chat { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    #n8n-chat .message.system{text-align:center;font-size:13px;color:#666 !important;font-style:italic;margin:6px 0}
+    #cooldownBanner{position:absolute;right:12px;top:12px;z-index:2;background:#111;color:#fff;font-size:12px;
+      padding:8px 10px;border-radius:10px;box-shadow:0 6px 16px rgba(0,0,0,.25);display:none}
+    #cooldownBanner.show{display:block}
 
-    /* Messages + footer visible */
-    #n8n-chat .messages { flex: 1; overflow-y: auto; padding: 20px; }
-    #n8n-chat .chat-footer {
-      display: flex !important;
-      visibility: visible !important;
-      background: #fff !important;
-      border-top: 1px solid #eee !important;
-      padding: 12px !important;
-    }
-    #n8n-chat .chat-input { width: 100%; display: flex; }
-    #n8n-chat .chat-input textarea {
-      flex: 1;
-      border: 1px solid #ddd !important;
-      border-radius: 20px !important;
-      padding: 10px 14px !important;
-      font-size: 15px;
-      resize: none;
-      min-height: 44px;
-      max-height: 140px;
-    }
-    #n8n-chat .chat-input button {
-      margin-left: 8px;
-      width: 44px; height: 44px;
-      border-radius: 50%;
-      background: #111 !important; color: #fff !important;
-    }
-
-    /* Hide n8n branding & launcher & header */
-    #n8n-chat .chat-header,
-    #n8n-chat [data-testid="powered-by"],
-    #n8n-chat .powered-by,
-    .n8n-chat .powered-by,
-    #n8n-chat [data-testid="launcher"],
-    .chat-launcher { display:none !important; }
-
-    /* System notices (cooldown) */
-    #n8n-chat .message.system {
-      text-align: center;
-      font-size: 13px;
-      color: #666 !important;
-      font-style: italic;
-      margin: 6px 0;
-    }
-
-    /* Cooldown mini-banner */
-    #cooldownBanner {
-      position: absolute; right: 12px; top: 12px; z-index: 2;
-      background: #111; color:#fff;
-      font-size: 12px; padding: 8px 10px; border-radius: 10px;
-      box-shadow: 0 6px 16px rgba(0,0,0,.25);
-      display: none;
-    }
-    #cooldownBanner.show { display:block; }
-
-    /* Footer */
-    footer {
-      background: #111; text-align: center; padding: 10px;
-      font-size: 13px; color: #aaa; border-top: 1px solid #222;
-    }
-    footer span { color: #f0f0f0; font-weight: 500; }
-    footer a { color:#fff; text-decoration:underline; }
+    footer{background:#111;text-align:center;padding:10px;font-size:13px;color:#aaa;border-top:1px solid #222}
+    footer span{color:#f0f0f0;font-weight:500}
+    footer a{color:#fff;text-decoration:underline}
   </style>
 </head>
 <body>
@@ -171,10 +82,8 @@
   </header>
 
   <section id="chatCard">
-    <!-- Cooldown toast -->
     <div id="cooldownBanner" aria-live="polite">⏳ Tunggu 10 saat antara soalan.</div>
 
-    <!-- Always-visible instructions (hide after first real message appears) -->
     <div id="welcomeNote">
       <strong>Selamat datang! 👋</strong><br>
       Tanyakan apa sahaja tentang Kuching &amp; Sarawak (makanan, tempat, pengangkutan, waktu operasi).<br>
@@ -182,19 +91,15 @@
       • Pautan boleh diklik: Sarawak Tourism – https://sarawaktourism.com, Kuiz – https://forms.gle/yJ3KPyNpUvEoaG9H9
     </div>
 
-    <!-- reCAPTCHA gate -->
     <div id="gate" role="dialog" aria-modal="true">
       <div class="gate-card">
         <div class="gate-title">Before we start</div>
-        <p class="gate-text">
-          Untuk elak spam & bot, sila tekan “Start Chat”. Kami akan sahkan anda manusia (reCAPTCHA) dan terus buka chat.
-        </p>
+        <p class="gate-text">Untuk elak spam & bot, sila tekan “Start Chat”. Kami akan sahkan anda manusia (reCAPTCHA) dan terus buka chat.</p>
         <button id="btnStart" class="gate-btn" type="button">Start Chat</button>
         <div class="gate-hint">Tip: Selepas hantar mesej, tunggu 10s sebelum mesej seterusnya.</div>
       </div>
     </div>
 
-    <!-- n8n chat mounts here -->
     <div id="n8n-chat"></div>
   </section>
 
@@ -205,210 +110,68 @@
   <script type="module">
     import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
 
-    // ======= CONFIG =======
-    const CHAT_WEBHOOK = 'https://n8n.meistericham.com/webhook/aichatbot';
-    const VERIFY_WEBHOOK = 'https://n8n.meistericham.com/webhook/verify-captcha';
-    const RECAPTCHA_SITE_KEY = '6Lf0xsErAAAAAM7vVvRIqb5JI_2Kf0p10aGzJ88W';
+    // --- CONFIG (update these) ---
+    const RECAPTCHA_SITE_KEY = '6Lf0xsErAAAAAM7vVvRIqb5JI_2Kf0p10aGzJ88W'; // SAME as in the script tag
+    const VERIFY_WEBHOOK     = 'https://n8n.meistericham.com/webhook/verify-captcha';
+    const CHAT_WEBHOOK       = 'https://n8n.meistericham.com/webhook/aichatbot';
 
     // Guards
-    const COOLDOWN_MS = 10_000;         // 10s between sends
-    const FAILSAFE_UNLOCK_MS = 25_000;  // auto-unlock if no assistant msg
-    const IDLE_RESET_MIN = 3;           // unlock after 3 min idle
+    const COOLDOWN_MS = 10_000, FAILSAFE_UNLOCK_MS = 25_000, IDLE_RESET_MIN = 3;
+    const SESSION_KEY = 'sam_session_locked', LAST_ACTIVITY = 'sam_last_activity';
 
-    // Session storage keys
-    const SESSION_KEY = 'sam_session_locked';
-    const LAST_ACTIVITY = 'sam_last_activity';
+    const $ = (s,r=document)=>r.querySelector(s); const show=el=>el&&el.classList.add('show'); const hide=el=>el&&el.classList.remove('show');
 
-    // ======= HELPERS =======
-    const $ = (sel, root=document) => root.querySelector(sel);
-    const show = el => el && el.classList.add('show');
-    const hide = el => el && el.classList.remove('show');
+    function injectSystemMessage(t){const m=$('#n8n-chat .messages');if(!m)return;const d=document.createElement('div');d.className='message system';d.textContent=t;m.appendChild(d);m.scrollTop=m.scrollHeight;}
 
-    function injectSystemMessage(text) {
-      const messages = $('#n8n-chat .messages');
-      if (!messages) return;
-      const div = document.createElement('div');
-      div.className = 'message system';
-      div.textContent = text;
-      messages.appendChild(div);
-      messages.scrollTop = messages.scrollHeight;
+    function installWelcomeAutoHide(){const note=$('#welcomeNote'),host=$('#n8n-chat');if(!note||!host)return;const mo=new MutationObserver(()=>{if(host.querySelector('.message')){note.classList.add('hidden');mo.disconnect();}});mo.observe(host,{childList:true,subtree:true});}
+
+    function isLocked(){const last=Number(localStorage.getItem(LAST_ACTIVITY)||0);if(Date.now()-last>IDLE_RESET_MIN*60_000){localStorage.removeItem(SESSION_KEY);}return !!localStorage.getItem(SESSION_KEY);}
+    function lockSession(){localStorage.setItem(SESSION_KEY,'1');localStorage.setItem(LAST_ACTIVITY,String(Date.now()));}
+    function touchSession(){localStorage.setItem(LAST_ACTIVITY,String(Date.now()));}
+    function unlockSession(){localStorage.removeItem(SESSION_KEY);}
+
+    let lastSendAt=0,lastText='',inFlight=false;
+    const cooldownRemaining=()=>Math.max(0,COOLDOWN_MS-(Date.now()-lastSendAt));
+    function blockIfCooling(e){const rem=cooldownRemaining();if(rem>0||inFlight){e?.preventDefault();const b=$('#cooldownBanner');b.textContent=`⏳ Sila tunggu ${Math.ceil(rem/1000)} saat sebelum hantar soalan baharu.`;show(b);setTimeout(()=>hide(b),1200);injectSystemMessage(`⏳ Sila tunggu ${Math.ceil(rem/1000)}s sebelum soalan berikutnya.`);return true;}return false;}
+
+    function installGuards(){
+      const root=document.getElementById('n8n-chat'); if(!root) return;
+      const box=()=>root.querySelector('textarea, input[type="text"]');
+      const sendBtn=()=>root.querySelector('.chat-input button');
+      const disable=on=>{box()&&(box().disabled=on);sendBtn()&&(sendBtn().disabled=on);};
+
+      const mo=new MutationObserver(()=>{if(!inFlight)return;const bot=root.querySelector('.message.assistant,.assistant,.bot');if(bot){inFlight=false;disable(false);touchSession();}});
+      mo.observe(root,{childList:true,subtree:true});
+
+      const safety=()=>setTimeout(()=>{inFlight=false;disable(false);},FAILSAFE_UNLOCK_MS);
+
+      root.addEventListener('keydown',(e)=>{ if(e.key!=='Enter') return;
+        const b=box(); const val=(b?.value||'').trim(); if(!val){e.preventDefault();return;}
+        if(!isLocked()) lockSession(); else touchSession();
+        if(blockIfCooling(e)) return;
+        if(val===lastText && Date.now()-lastSendAt<COOLDOWN_MS){e.preventDefault();injectSystemMessage('⚠️ Mesej sama telah dihantar. Cuba ubah soalan.');return;}
+        inFlight=true; lastSendAt=Date.now(); lastText=val; disable(true); safety();
+      },true);
+
+      root.addEventListener('click',(e)=>{const t=e.target; if(!(t instanceof HTMLElement) || !t.closest('.chat-input button')) return;
+        const b=box(); const val=(b?.value||'').trim(); if(!val){e.preventDefault();return;}
+        if(!isLocked()) lockSession(); else touchSession();
+        if(blockIfCooling(e)) return;
+        if(val===lastText && Date.now()-lastSendAt<COOLDOWN_MS){e.preventDefault();injectSystemMessage('⚠️ Mesej sama telah dihantar. Cuba ubah soalan.');return;}
+        inFlight=true; lastSendAt=Date.now(); lastText=val; disable(true); setTimeout(()=>{inFlight=false;disable(false);},FAILSAFE_UNLOCK_MS);
+      },true);
+
+      setInterval(()=>{const last=Number(localStorage.getItem(LAST_ACTIVITY)||0); if(Date.now()-last>IDLE_RESET_MIN*60_000){unlockSession();injectSystemMessage('ℹ️ Sesi dinyahaktif selepas tidak aktif. Anda boleh sambung bersembang.');}},30_000);
     }
 
-    function installWelcomeAutoHide() {
-      const note = $('#welcomeNote');
-      const host = $('#n8n-chat');
-      if (!note || !host) return;
-      const mo = new MutationObserver(() => {
-        const hasChatMsg = host.querySelector('.message');
-        if (hasChatMsg) { note.classList.add('hidden'); mo.disconnect(); }
-      });
-      mo.observe(host, { childList: true, subtree: true });
+    async function verifyCaptcha(token){
+      try{
+        const res=await fetch(VERIFY_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,action:'start_chat'})});
+        const data=await res.json().catch(()=>({})); return !!data.success;
+      }catch(err){console.error('Captcha verify error',err); return false;}
     }
 
-    function isLocked() {
-      const last = Number(localStorage.getItem(LAST_ACTIVITY) || 0);
-      if (Date.now() - last > IDLE_RESET_MIN * 60_000) {
-        localStorage.removeItem(SESSION_KEY);
-      }
-      return !!localStorage.getItem(SESSION_KEY);
-    }
-    function lockSession() {
-      localStorage.setItem(SESSION_KEY, '1');
-      localStorage.setItem(LAST_ACTIVITY, String(Date.now()));
-    }
-    function touchSession() {
-      localStorage.setItem(LAST_ACTIVITY, String(Date.now()));
-    }
-    function unlockSession() {
-      localStorage.removeItem(SESSION_KEY);
-    }
-
-    let lastSendAt = 0;
-    let lastText = '';
-    let inFlight = false;
-
-    function cooldownRemaining() {
-      return Math.max(0, COOLDOWN_MS - (Date.now() - lastSendAt));
-    }
-
-    function blockIfCooling(e) {
-      const rem = cooldownRemaining();
-      if (rem > 0 || inFlight) {
-        e?.preventDefault();
-        const banner = $('#cooldownBanner');
-        banner.textContent = `⏳ Sila tunggu ${Math.ceil(rem/1000)} saat sebelum hantar soalan baharu.`;
-        show(banner);
-        setTimeout(() => hide(banner), 1200);
-        injectSystemMessage(`⏳ Sila tunggu ${Math.ceil(rem/1000)}s sebelum soalan berikutnya.`);
-        return true;
-      }
-      return false;
-    }
-
-    function installGuards() {
-      const root = document.getElementById('n8n-chat');
-      if (!root) return;
-
-      const box = () => root.querySelector('textarea, input[type="text"]');
-      const sendBtn = () => root.querySelector('.chat-input button');
-      const disable = on => { box() && (box().disabled = on); sendBtn() && (sendBtn().disabled = on); };
-
-      const mo = new MutationObserver(() => {
-        if (!inFlight) return;
-        const botMsg = root.querySelector('.message.assistant, .assistant, .bot');
-        if (botMsg) { inFlight = false; disable(false); touchSession(); }
-      });
-      mo.observe(root, { childList: true, subtree: true });
-
-      const safety = () => setTimeout(() => { inFlight = false; disable(false); }, FAILSAFE_UNLOCK_MS);
-
-      // ENTER
-      root.addEventListener('keydown', (e) => {
-        if (e.key !== 'Enter') return;
-        const b = box();
-        const val = (b?.value || '').trim();
-        if (!val) { e.preventDefault(); return; }
-
-        if (!isLocked()) { lockSession(); } else { touchSession(); }
-        if (blockIfCooling(e)) return;
-
-        if (val === lastText && Date.now() - lastSendAt < COOLDOWN_MS) {
-          e.preventDefault();
-          injectSystemMessage('⚠️ Mesej sama telah dihantar. Cuba ubah soalan.');
-          return;
-        }
-
-        inFlight = true;
-        lastSendAt = Date.now();
-        lastText = val;
-        disable(true);
-        safety();
-      }, true);
-
-      // CLICK
-      root.addEventListener('click', (e) => {
-        const t = e.target;
-        if (!(t instanceof HTMLElement)) return;
-        if (!t.closest('.chat-input button')) return;
-
-        const b = box();
-        const val = (b?.value || '').trim();
-        if (!val) { e.preventDefault(); return; }
-
-        if (!isLocked()) { lockSession(); } else { touchSession(); }
-        if (blockIfCooling(e)) return;
-
-        if (val === lastText && Date.now() - lastSendAt < COOLDOWN_MS) {
-          e.preventDefault();
-          injectSystemMessage('⚠️ Mesej sama telah dihantar. Cuba ubah soalan.');
-          return;
-        }
-
-        inFlight = true;
-        lastSendAt = Date.now();
-        lastText = val;
-        disable(true);
-        setTimeout(() => { inFlight = false; disable(false); }, FAILSAFE_UNLOCK_MS);
-      }, true);
-
-      // Idle unlock
-      setInterval(() => {
-        const last = Number(localStorage.getItem(LAST_ACTIVITY) || 0);
-        if (Date.now() - last > IDLE_RESET_MIN * 60_000) {
-          unlockSession();
-          injectSystemMessage('ℹ️ Sesi dinyahaktif selepas tidak aktif. Anda boleh sambung bersembang.');
-        }
-      }, 30_000);
-    }
-
-    function installLinkifier() {
-      const container = document.getElementById('n8n-chat');
-      if (!container) return;
-      const urlRegex = /\b(https?:\/\/[^\s<)]+)\b/gi;
-      const enhance = (el) => {
-        if (!el || el.__linkified) return;
-        el.innerHTML = el.innerHTML.replace(urlRegex, (m) => {
-          const safe = m.replace(/"/g, '&quot;');
-          return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
-        });
-        el.__linkified = true;
-      };
-      const mo = new MutationObserver((mutations) => {
-        for (const m of mutations) {
-          for (const n of m.addedNodes) {
-            if (!(n instanceof HTMLElement)) continue;
-            if (n.matches('.message-text, .bubble, .markdown-body, .chat-message')) enhance(n);
-            n.querySelectorAll?.('.message-text, .bubble, .markdown-body, .chat-message').forEach(enhance);
-          }
-        }
-      });
-      mo.observe(container, { childList: true, subtree: true });
-    }
-
-    async function verifyCaptcha(token) {
-      try {
-        const res = await fetch(VERIFY_WEBHOOK, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, action: 'start_chat' })
-        });
-        const data = await res.json().catch(() => ({}));
-        return !!data.success;
-      } catch (e) {
-        console.error('Captcha verify error', e);
-        return false;
-      }
-    }
-
-    async function startChat() {
-      // run reCAPTCHA
-      const token = await grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'start_chat' });
-      const ok = await verifyCaptcha(token);
-      if (!ok) {
-        alert('reCAPTCHA verification failed. Please try again.');
-        return;
-      }
-      // mount chat
+    async function openChat(){
       await createChat({
         webhookUrl: CHAT_WEBHOOK,
         target: '#n8n-chat',
@@ -421,27 +184,34 @@
           'Tanya apa-apa pasal Kuching & Sarawak: tempat menarik, makanan, waktu operasi, pengangkutan.',
           'Contoh: “Bila show Darul Hana fountain?”, “Macam mana pergi Bako?”, “Di mana beli kek lapis?”'
         ],
-        i18n: {
-          en: { inputPlaceholder: 'Tanya soalan di sini… contoh: “Waktu fountain Darul Hana”' }
-        }
+        i18n: { en: { inputPlaceholder: 'Tanya soalan di sini… contoh: “Waktu fountain Darul Hana”' } }
       });
-      // hide gate, set up guards
       $('#gate').classList.add('hidden');
       installGuards();
       installWelcomeAutoHide();
     }
 
-    // Wire the Start button
-    document.addEventListener('DOMContentLoaded', () => {
-      // Ensure recaptcha is ready before enabling button
-      const btn = $('#btnStart');
-      btn.addEventListener('click', async () => {
-        try {
-          await grecaptcha.ready(async () => { await startChat(); });
-        } catch (e) {
-          alert('Unable to start chat right now. Please try again.');
-          console.error(e);
-        }
+    async function handleStart(){
+      // 2) Ensure library is ready, then execute
+      await grecaptcha.ready();
+      console.log('[recaptcha] ready');
+
+      const token = await grecaptcha.execute(RECAPTCHA_SITE_KEY,{action:'start_chat'});
+      if(!token){ alert('reCAPTCHA gagal. Cuba semula.'); console.warn('[recaptcha] empty token'); return; }
+
+      const ok = await verifyCaptcha(token);
+      console.log('[recaptcha] verify result:', ok);
+      if(!ok){ alert('Verifikasi reCAPTCHA gagal. Sila cuba lagi.'); return; }
+
+      await openChat();
+    }
+
+    document.addEventListener('DOMContentLoaded', ()=>{
+      $('#btnStart').addEventListener('click', ()=>{
+        handleStart().catch(err=>{
+          console.error('Start error', err);
+          alert('Tidak dapat memulakan chat sekarang. Cuba lagi.');
+        });
       });
     });
   </script>
