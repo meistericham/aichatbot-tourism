@@ -140,24 +140,25 @@
     const hide = el => el && el.classList.remove('show');
 
     /* =========================================================
-       SEGMENT B — Utility helpers & system messages
+       SEGMENT B — Utility helpers & system messages  (REPLACE)
     ==========================================================*/
-    function injectSystemMessage(text){
+    function getMessagesContainer() {
       const host = document.querySelector('#n8n-chat');
       if (!host) return null;
 
       // Try several containers so it works across n8n versions
-      const container =
+      return (
         host.querySelector('.chat-body') ||
         host.querySelector('.chat-window') ||
         host.querySelector('.chat-window-wrapper') ||
         host.querySelector('.messages') ||
-        null;
+        null
+      );
+    }
 
-      if (!container) {
-        console.warn('[system] messages container not found');
-        return null;
-      }
+    function injectSystemMessage(text){
+      const container = getMessagesContainer();
+      if (!container) return null;
 
       const div = document.createElement('div');
       div.className = 'message system';
@@ -173,23 +174,25 @@
       return div;
     }
 
-    function installWelcomeAutoHide(){
-      const note = qs('#welcomeNote'), host = qs('#n8n-chat');
-      if(!note || !host) return;
-      const mo = new MutationObserver(()=>{
-        if(host.querySelector('.message')){ note.classList.add('hidden'); mo.disconnect(); }
-      });
-      mo.observe(host,{childList:true,subtree:true});
-    }
+    /* single reusable line for countdown */
+    function getOrCreateCooldownLine() {
+      const container = getMessagesContainer();
+      if (!container) return null;
 
-    // Session helpers
-    function isLocked(){ const last=Number(localStorage.getItem(LAST_ACTIVITY)||0);
-      if(Date.now()-last>IDLE_RESET_MIN*60_000){ localStorage.removeItem(SESSION_KEY); }
-      return !!localStorage.getItem(SESSION_KEY);
+      let el = container.querySelector('.message.system.cooldown-line');
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'message system cooldown-line';
+        el.style.margin = '6px 10px';
+        el.style.textAlign = 'center';
+        el.style.fontSize = '13px';
+        el.style.color = '#666';
+        el.style.fontStyle = 'italic';
+        container.appendChild(el);
+      }
+      container.scrollTop = container.scrollHeight;
+      return el;
     }
-    function lockSession(){ localStorage.setItem(SESSION_KEY,'1'); localStorage.setItem(LAST_ACTIVITY,String(Date.now())); }
-    function touchSession(){ localStorage.setItem(LAST_ACTIVITY,String(Date.now())); }
-    function unlockSession(){ localStorage.removeItem(SESSION_KEY); }
 
     /* =========================================================
        SEGMENT C — Countdown state + logic
